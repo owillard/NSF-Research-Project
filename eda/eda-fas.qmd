@@ -1,0 +1,280 @@
+---
+title: "eda_fas_1"
+author: "Olivia Willard"
+format: html
+---
+## Loading Data
+```{r}
+#| label: import data 
+library(readr)
+library(ggplot2)
+
+uds_data <- read_csv(here::here("data/NACC_data/original_data/data_cleaned", "uds.csv")) #questionare data
+
+na.omit(uds_data)
+
+```
+
+## Part 1
+1. Travel: did subject have any difficulty or need help with travelling
+```{r}
+travel_data <- table(uds_data$NACCUDSD, uds_data$TRAVEL)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(TRAVEL))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "TRAVEL") +
+  theme_minimal()
+
+addmargins(travel_data)
+```
+2. Remembering Dates: did subject have any difficulty or need help with remembering appointments, etc.
+```{r}
+remdates_data <- table(uds_data$NACCUDSD, uds_data$REMDATES)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(REMDATES))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "REMDATES") +
+  theme_minimal()
+
+addmargins(remdates_data)
+```
+
+
+3. Paying Attention: did subject have any difficulty or need help with paying attention to or understanding tv programs, etc.
+```{r}
+payattn_data <- table(uds_data$NACCUDSD, uds_data$PAYATTN)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(PAYATTN))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "PAYATTN") +
+  theme_minimal()
+
+addmargins(payattn_data)
+```
+
+
+4. Meal Prepping: did subject have any difficulty or need help with preparing a balanced meal
+```{r}
+mealprep_data <- table(uds_data$NACCUDSD, uds_data$MEALPREP)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(MEALPREP))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "MEALPREP") +
+  theme_minimal()
+
+addmargins(mealprep_data)
+```
+
+
+5. Events: did subject have any difficulty or need help with keeping track of current events?
+```{r}
+events_data <- table(uds_data$NACCUDSD, uds_data$EVENTS)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(EVENTS))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "EVENTS") +
+  theme_minimal()
+
+addmargins(events_data)
+```
+
+
+6. Shopping: did subject have any difficulty or need help with shopping alone for grocerys, clothes, etc.
+```{r}
+shopping_data <- table(uds_data$NACCUDSD, uds_data$SHOPPING)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(SHOPPING))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "SHOPPING") +
+  theme_minimal()
+
+addmargins(shopping_data)
+```
+
+7. Games: did subject have any difficulty or need help with playing games or working on hobbys
+```{r}
+games_data <- table(uds_data$NACCUDSD, uds_data$GAMES)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(GAMES))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "GAMES") +
+  theme_minimal()
+
+addmargins(games_data)
+```
+
+8. Stove: did subject have any difficulty or need help with heating water, remembering to turn off the stove
+```{r}
+stove_data <- table(uds_data$NACCUDSD, uds_data$STOVE)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(STOVE))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "STOVE") +
+  theme_minimal()
+
+addmargins(stove_data)
+```
+
+9. Bills: did subject have any difficulty or need help with paying bills, writing checks, etc.
+```{r}
+bills_data <- table(uds_data$NACCUDSD, uds_data$BILLS)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(BILLS))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "BILLS") +
+  theme_minimal()
+
+addmargins(bills_data)
+```
+
+10: Taxes: did subject have any difficulty or need help with assemblin tax records, business affairs, or other papers
+```{r}
+taxes_data <- table(uds_data$NACCUDSD, uds_data$TAXES)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(TAXES))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "TAXES") +
+  theme_minimal()
+
+addmargins(taxes_data)
+```
+
+
+
+## PART 2
+
+A lot of missing data, like almost over 75% of the data is missing for these variables so probably wont use. However for the chi squared tests that did work it did show there was statistical significance
+
+
+11: APPSEV: Appetite and eating severity
+```{r}
+appetite_data <- table(uds_data$NACCUDSD, uds_data$APPSEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(APPSEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "APPSEV") +
+  theme_minimal()
+
+addmargins(appetite_data)
+```
+12: NITESEV: Nighttime behaviors severity
+```{r}
+nighttime_data <- table(uds_data$NACCUDSD, uds_data$NITESEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(NITESEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "NITESEV") +
+  theme_minimal()
+
+addmargins(nighttime_data)
+```
+13: MOTSEV: Motor disturbance severity
+```{r}
+motor_data <- table(uds_data$NACCUDSD, uds_data$MOTSEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(MOTSEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "MOTSEV") +
+  theme_minimal()
+
+addmargins(motor_data)
+```
+14: IRRSEV: Irritability or lability severity
+```{r}
+irritability_data <- table(uds_data$NACCUDSD, uds_data$IRRSEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(IRRSEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "IRRSEV") +
+  theme_minimal()
+
+addmargins(irritability_data)
+```
+15: DISNSEV: Disinhibition severity
+```{r}
+disinhibition_data <- table(uds_data$NACCUDSD, uds_data$DISNSEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(DISNSEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "DISNSEV") +
+  theme_minimal()
+
+addmargins(disinhibition_data)
+```
+16: APASEV: apathy or indifference severity
+```{r}
+apathy_data <- table(uds_data$NACCUDSD, uds_data$APASEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(APASEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "APASEV") +
+  theme_minimal()
+
+addmargins(apathy_data)
+```
+17: ELATSEV: elation or euphoria severity
+```{r}
+elation_data <- table(uds_data$NACCUDSD, uds_data$ELATSEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(ELATSEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "ELATSEV") +
+  theme_minimal()
+
+addmargins(elation_data)
+```
+18: ANXSEV: anxiety severity
+```{r}
+anxiety_data <- table(uds_data$NACCUDSD, uds_data$ANXSEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(ANXSEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "ANXSEV") +
+  theme_minimal()
+
+addmargins(anxiety_data)
+```
+19: DEPDSEV: depression or dysphoria severity
+```{r}
+depression_data <- table(uds_data$NACCUDSD, uds_data$DEPDSEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(DEPDSEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "DEPDSEV") +
+  theme_minimal()
+
+addmargins(depression_data)
+```
+20: AGITSEV: agitation or agression severity
+```{r}
+agitation_data <- table(uds_data$NACCUDSD, uds_data$AGITSEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(AGITSEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "AGITSEV") +
+  theme_minimal()
+
+addmargins(agitation_data)
+```
+21: HALLSEV: hallucinations severity
+```{r}
+hallucination_data <- table(uds_data$NACCUDSD, uds_data$HALLSEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(HALLSEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "HALLSEV") +
+  theme_minimal()
+
+addmargins(hallucination_data)
+```
+22: DELSEV: delusions severity
+```{r}
+delusion_data <- table(uds_data$NACCUDSD, uds_data$DELSEV)
+
+ggplot(uds_data, aes(x = NACCUDSD, fill = factor(DELSEV))) +
+  geom_bar(position = "fill") +
+  labs(x = "NACCUDSD", y = "Proportion", fill = "DELSEV") +
+  theme_minimal()
+
+addmargins(delusion_data)
+```
