@@ -1,6 +1,5 @@
 ---
 title: "Combined RF"
-author: "Yvette Vargas"
 format: html
 ---
 
