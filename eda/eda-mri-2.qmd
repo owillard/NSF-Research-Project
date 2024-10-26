@@ -1,0 +1,262 @@
+---
+title: "eda-mri-2"
+author: "Olivia Willard"
+format: html
+---
+
+## Loading Data
+
+```{r}
+library(readr)
+library(dplyr)
+
+mri_data <- read_csv(here::here("data/NACC_data/original_data/data_cleaned", "mri.csv")) #mri data
+uds_data <- read_csv(here::here("data/NACC_data/original_data/data_cleaned", "uds.csv")) #questionare data
+
+na.omit(uds_data)
+na.omit(mri_data)
+
+merged_data <- inner_join(mri_data, uds_data, by = "NACCID")
+
+```
+
+## Summary Statistics 
+
+```{r}
+# Summary statistics for Occipital Lobe
+summary(mri_data$LOCCORT)
+summary(mri_data$ROCCORT)
+
+# Summary statistics for Parietal Lobe
+summary(mri_data$LPARCORT)
+summary(mri_data$RPARCORT)
+
+# Summary statistics for Temporal Lobe
+summary(mri_data$LTEMPCOR)
+summary(mri_data$RTEMPCOR)
+
+
+```
+
+
+## Density Plots
+```{r}
+library(ggplot2)
+# Density plot for Occipital Lobe
+ggplot(mri_data) +
+  geom_density(aes(x = LOCCORT, fill = "Left"), alpha = 0.4) +
+  geom_density(aes(x = ROCCORT, fill = "Right"), alpha = 0.4) +
+  labs(title = "Density Plot of Occipital Lobe Volumes", x = "Volume (cc)", fill = "Hemisphere") +
+  theme_minimal()
+
+# Density plot for Parietal Lobe
+ggplot(mri_data) +
+  geom_density(aes(x = LPARCORT, fill = "Left"), alpha = 0.5) +
+  geom_density(aes(x = RPARCORT, fill = "Right"), alpha = 0.5) +
+  labs(title = "Density Plot of Parietal Lobe Volumes", x = "Volume (cc)", fill = "Hemisphere") +
+  theme_minimal()
+
+# Density plot for Temporal Lobe
+ggplot(mri_data) +
+  geom_density(aes(x = LTEMPCOR, fill = "Left"), alpha = 0.5) +
+  geom_density(aes(x = RTEMPCOR, fill = "Right"), alpha = 0.5) +
+  labs(title = "Density Plot of Temporal Lobe Volumes", x = "Volume (cc)", fill = "Hemisphere") +
+  theme_minimal()
+
+```
+
+## Scatter and Box Plots
+```{r}
+merged_data %>%
+  ggplot(aes(x = NACCAGE, y = LOCCORT)) +
+  geom_point(aes(colour = factor(NACCUDSD)))
+
+merged_data %>%
+  ggplot(aes(x = NACCAGE, y = ROCCORT)) +
+  geom_point(aes(colour = factor(NACCUDSD)))
+
+merged_data %>%
+  ggplot(aes(x = factor(NACCUDSD), y = LOCCORT)) +
+  geom_boxplot()
+
+merged_data %>%
+  ggplot(aes(x = factor(NACCUDSD), y = ROCCORT)) +
+  geom_boxplot()
+```
+
+
+## Correlation Numbers
+```{r}
+# Correlation for Occipital Lobe
+cor(mri_data$LOCCORT, mri_data$ROCCORT)
+
+# Correlation for Parietal Lobe
+cor(mri_data$LPARCORT, mri_data$RPARCORT)
+
+# Correlation for Temporal Lobe
+cor(mri_data$LTEMPCOR, mri_data$RTEMPCOR)
+
+```
+The values are extremely close to 1, which suggests a very strong positive correlation between the volumes of the left and right hemispheres for each lobe. When the volume of the left hemisphere lobe increases, the volume of the corresponding right hemisphere lobe also increases, and vice versa. This could mean that the volumes of the left and right hemispheres are linearly related.
+
+## Paired TTest
+-> paired ttest compares means to see if the two groups have any statistical significance to one another
+```{r}
+# Paired T-Test for Occipital Lobe
+t.test(mri_data$LOCCORT, mri_data$ROCCORT, paired = TRUE)
+
+# Paired T-Test for Parietal Lobe
+t.test(mri_data$LPARCORT, mri_data$RPARCORT, paired = TRUE)
+
+# Paired T-Test for Temporal Lobe
+t.test(mri_data$LTEMPCOR, mri_data$RTEMPCOR, paired = TRUE)
+
+# Paired T-Test for Hippocampus
+t.test(mri_data$LHIPPO, mri_data$RHIPPO, paired = TRUE)
+
+t.test(mri_data$LCAC, mri_data$RCAC, paired = TRUE)
+t.test(mri_data$LCMF, mri_data$RCMF, paired = TRUE)
+t.test(mri_data$LCUN, mri_data$RCUN, paired = TRUE)
+t.test(mri_data$LENT, mri_data$RENT, paired = TRUE)
+
+
+
+```
+
+All results have a p-value less than 0.05 so we can conclude that the difference between left and right occipital lobe, left and right parietal lobe, and left and right temporal lobe is statistically significant. 
+  # On average, the left occipital lobe volume is 0.3193054 less than the right             occipital lobe volume. 
+  # On average, the left parietal lobe volume is 0.3345119 less than the right parietal     lobe volume.
+  # On average, the left temporal lobe volume is 0.9985784 more than the right              temporal lobe volume.
+  # On average, the left side of the hippocampus volume is 0.03030104 less than the         right side of the hippocampus
+  # The mean difference between LOCCORT and ROCCORT is -0.3193054 units. This means, on average, the left occipital lobe has a slightly lower gray matter volume compared to the right occipital lobe in your sample.
+  
+  
+
+## Data EDA
+1 = Normal cognition 
+2 = Impaired-not-MCI 
+3 = MCI 
+4 = Dementia
+
+```{r}
+library(ggplot2)
+#| label: histogram of  CRAFTDRE
+# Step 1: Set up the graph
+ggplot(data = merged_data, 
+       mapping = aes(x = NACCUDSD)) +
+# Step 2: Add the plot
+  geom_histogram(fill = "darkviolet", 
+                 color = "black",
+                 center = 16,
+                 binwidth = 1) +
+# Step 3: Add features to the plot
+  labs(x = "UDSD Score",
+       y = "Number of Patients",
+       color = "UDSD Scores",
+       title = "UDSD Scores Among Patients") +
+  theme(
+    axis.title = element_text(size = 24),
+    axis.text = element_text(size = 16)
+  )
+```
+
+
+
+
+## Box Plots on Entorhinal Gray Matter Volume
+```{r}
+# Left entorhinal gray matter volume (cc)
+ggplot(merged_data, aes(x = as.factor(NACCUDSD), y = LENT, color = as.factor(NACCUDSD))) +
+  geom_boxplot() +
+  labs(x = "NACCUDSD Score", 
+       y = "Left Entorhinal Gray Matter Volume",
+       color = "NACCUDSD Scores",
+       title = "NACCUDSD Scores vs LENT") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ylim(0, 8)
+
+# Right entorhinal gray matter volume (cc)
+ggplot(merged_data, aes(x = as.factor(NACCUDSD), y = RENT, color = as.factor(NACCUDSD))) +
+  geom_boxplot() +
+  labs(x = "NACCUDSD Score", 
+       y = "Right Entorhinal Gray Matter Volume",
+       color = "NACCUDSD Scores",
+       title = "NACCUDSD Scores vs RENT") +
+  
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ylim(0, 8)
+```
+
+
+## Box Plots on Hippocampus Volumes
+```{r}
+# Lefthippo volume (cc)
+ggplot(merged_data, aes(x = as.factor(NACCUDSD), y = LHIPPO, color = as.factor(NACCUDSD))) +
+  geom_boxplot() +
+  labs(x = "Cognitive Status", 
+       y = "Left Hippocampus Volume",
+       color = "Cognitive Status",
+       title = "Cognitive Status Against Left Hippocampus Volume") +
+  scale_color_manual(values = c("1" = "red", "2" = "orange", "3" = "blue", "4" = "purple"),
+                          labels = c("1: Normal Cognition", "2: Impaired-not-MCI", "3: MCI", "4: Dementia")) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ylim(0, 5)
+
+# Righthippo volume (cc)
+ggplot(merged_data, aes(x = as.factor(NACCUDSD), y = RHIPPO, color = as.factor(NACCUDSD))) +
+  geom_boxplot() +
+  labs(x = "Cognitive Status", 
+       y = "Right Hippocampus Volume",
+       color = "Cognitive Status",
+       title = "Cognitive Status Against Right Hippocampus Volume") +
+       scale_color_manual(values = c("1" = "red", "2" = "orange", "3" = "blue", "4" = "purple"),
+                          labels = c("1: Normal Cognition", "2: Impaired-not-MCI", "3: MCI", "4: Dementia")) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ylim(0, 5)
+```
+
+## Box Plots on Cortical Thicknesses
+```{r}
+
+ggplot(merged_data, aes(x = as.factor(NACCUDSD), y = LPOSCINM, color = as.factor(NACCUDSD))) +
+  geom_boxplot() +
+  labs(x = "NACCUDSD Score", 
+       y = "Left Posterior Cingulate Mean Cortical Thickness",
+       color = "NACCUDSD Scores",
+       title = "NACCUDSD Scores Against Left Posterior Cingulate Cortical Thickness") +
+       scale_color_manual(values = c("1" = "red", "2" = "orange", "3" = "blue", "4" = "purple"),
+                          labels = c("1: Normal Cognition", "2: Impaired-not-MCI", "3: MCI", "4: Dementia")) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+
+ggplot(merged_data, aes(x = as.factor(NACCUDSD), y = RPOSCINM, color = as.factor(NACCUDSD))) +
+  geom_boxplot() +
+  labs(x = "NACCUDSD Score", 
+       y = "Right Posterior Cingulate Cortical Thickness",
+       color = "NACCUDSD Scores",
+       title = "NACCUDSD Scores Against Right Posterior Cingulate Mean Cortical Thickness") +
+       scale_color_manual(values = c("1" = "red", "2" = "orange", "3" = "blue", "4" = "purple"),
+                          labels = c("1: Normal Cognition", "2: Impaired-not-MCI", "3: MCI", "4: Dementia")) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+```
+
+
+## Box Plots on Brain Volume
+```{r}
+# Total brain volume (cc)
+
+cleanmriuds <- merged_data |>
+  filter(NACCBRNV < 8888.888,
+         LHIPPO < 88.8888,
+         RHIPPO < 88.8888,
+         HIPPOVOL < 88.8888,
+         LPOSCINM < 8.8888,
+         RPOSCINM < 8.8888)
+
+ggplot(cleanmriuds, aes(x = as.factor(NACCUDSD), y = NACCBRNV, color = as.factor(NACCUDSD))) +
+  geom_boxplot() +
+  labs(x = "NACCUDSD Score", 
+       y = "Total Brain Volume",
+       color = "NACCUDSD Scores",
+       title = "NACCUDSD Scores vs NACCBRNV") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+```
