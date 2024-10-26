@@ -1,0 +1,43 @@
+---
+title: "test-mri"
+format: html
+editor: visual
+---
+
+## ANOVA
+
+### NACCUDSD
+
+ANOVA statistical method allows to evaluate the simultaneous effect of a categorical variable (NACCUDSD) on a quantitative continuous variable (LPOSCINM/RPOSCINM).
+
+```{r ANOVA with NACCUDSD and LPOSCINM}
+cleanmriuds$NACCUDSD <- as.factor(cleanmriuds$NACCUDSD)
+
+anova_UDSDLPOS <- aov(LPOSCINM ~ NACCUDSD, data = cleanmriuds)
+summary(anova_UDSDLPOS)
+```
+
+```{r ANOVA with NACCUDSD and RPOSCINM}
+
+anova_UDSDRPOS <- aov(RPOSCINM ~ NACCUDSD, data = cleanmriuds)
+summary(anova_UDSDRPOS)
+```
+
+```{r ANOVA with NACCUDSD and LHIPPO}
+
+anova_UDSDLHIP <- aov(LHIPPO ~ NACCUDSD, data = cleanmriuds)
+summary(anova_UDSDLHIP)
+```
+
+```{r ANOVA with NACCUDSD and RHIPPO}
+
+anova_UDSDRHIP <- aov(RHIPPO ~ NACCUDSD, data = cleanmriuds)
+summary(anova_UDSDRHIP)
+```
+
+### ANOVA Results
+F-value: 
+NACCUDSD vs LPOSCINM - 133
+NACCUDSD vs RPOSCINM - 115.5
+NACCUDSD vs LHIPPO - 260.3
+NACCUDSD vs RHIPPO - 224.5
