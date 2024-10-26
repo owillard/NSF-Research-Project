@@ -1,0 +1,125 @@
+---
+title: "eda-fas-2"
+author: "Yvette Vargas"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(grid)
+library(cowplot)
+library(readr)
+library(here)
+```
+
+
+```{r}
+uds <- read_csv(here::here("data/NACC_data/original_data/data_cleaned", "uds.csv")) %>%
+    filter(NACCUDSD == "1" | NACCUDSD == "3" | NACCUDSD == "4") %>%
+    mutate(cog_status = case_when(NACCUDSD == 1 ~ "HC",         
+                              NACCUDSD == 3 ~ "MCI",     
+                              NACCUDSD == 4 ~ "AD")) %>%
+    mutate(cog_status = factor(cog_status, levels = c("HC", "MCI", "AD")))
+
+
+fas_taxes <- uds %>%
+  select(TAXES, cog_status) %>%
+  mutate(TAXES = case_when(TAXES == 0 ~ "Normal",
+                           TAXES == 1 ~ "Slight\nDifficulty",
+                           TAXES == 2 ~ "Requires\nAssistance",
+                           TAXES == 3 ~ "Dependent" )) %>%
+  mutate(TAXES = factor(TAXES, levels = c("Normal", "Slight\nDifficulty", "Requires\nAssistance", "Dependent"))) %>%
+  na.omit()
+
+fas_bills <- uds %>%
+  select(BILLS, cog_status) %>%
+  mutate(BILLS = case_when(BILLS == 0 ~ "Normal",
+                           BILLS == 1 ~ "Slight\nDifficulty",
+                           BILLS == 2 ~ "Requires\nAssistance",
+                           BILLS == 3 ~ "Dependent" )) %>%
+ mutate(BILLS = factor(BILLS, levels = c("Normal", "Slight\nDifficulty", "Requires\nAssistance", "Dependent"))) %>%
+  na.omit()
+
+fas_remdates <- uds %>%
+  select(REMDATES, cog_status) %>%
+  mutate(REMDATES = case_when(REMDATES == 0 ~ "Normal",
+                           REMDATES == 1 ~ "Slight\nDifficulty",
+                           REMDATES == 2 ~ "Requires\nAssistance",
+                           REMDATES == 3 ~ "Dependent" )) %>%
+  mutate(REMDATES = factor(REMDATES, levels = c("Normal", "Slight\nDifficulty", "Requires\nAssistance", "Dependent"))) %>%
+  na.omit()
+#questionare data
+```
+
+```{r}
+
+plot1 <- ggplot(fas_taxes, aes(x = TAXES, fill = cog_status)) +
+  geom_bar(position = "fill") +
+  labs(x = "Ability to Do Taxes", y = "Proportion", fill = "Cognitive Status") +
+  theme_minimal() + 
+  scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("#4B0082", "violet", "#008080"),
+  ) +
+  theme(axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 14),  
+        axis.title.y = element_text(size = 14),  
+        legend.position = "none")
+
+plot2 <- ggplot(fas_bills, aes(x = BILLS, fill = cog_status)) +
+  geom_bar(position = "fill") +
+  labs(x = "Ability to Pay Bills", y = "", fill = "Cognitive Status") +
+  theme_minimal() + 
+  scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("#4B0082", "violet", "#008080"),
+  ) + 
+  theme(axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 14),  
+        axis.title.y = element_text(size = 14),  
+        legend.position = "none")
+  
+plot3 <- ggplot(fas_remdates, aes(x = REMDATES, fill = cog_status)) +
+  geom_bar(position = "fill") +
+  labs(x = "Ability to Remember Dates", y = "", fill = "Cognitive Status") +
+  theme_minimal() + 
+  scale_fill_manual(
+    name = "Cognitive\nStatus",
+    values = c("#4B0082", "violet", "#008080"),
+  ) +
+  theme(axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 14),  
+        axis.title.y = element_text(size = 14),  
+        legend.position = "none")
+
+```
+
+```{r}
+legend <- get_legend(plot3 + theme(legend.position = "right"))
+
+title <- textGrob("FAS Variables by Cognitive Status", gp = gpar(fontsize = 16, fontface = "bold"))
+
+# Arrange the plots and legend side by side
+plots_and_legend <- arrangeGrob(
+  plot1, plot2, plot3, legend,
+  ncol = 4,
+  widths = c(4, 4, 4, 4)
+)
+```
+
+```{r}
+# Combine the title with the arranged plots and legend
+arranged_plot <- grid.arrange(
+  arrangeGrob(plot1, plot2, plot3,  ncol = 3,
+              top = textGrob("FAS Variables by Cognitive Status",
+                             gp=gpar(fontsize=16))), right = legend)
+```
+
+
+```{r}
+ggsave("combined_fas_plot.png", plot = arranged_plot, width = 12, height = 4)
+```
