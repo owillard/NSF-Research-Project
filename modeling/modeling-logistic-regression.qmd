@@ -1,0 +1,602 @@
+---
+title: "Modeling - Logistic Regression"
+author: "Kent T"
+format: html
+---
+
+## Data Wrangling
+
+```{r}
+#| label: load packages
+library(tidyverse) 
+library(rsample)
+library(broom)
+library(yardstick)
+library(janitor)
+```
+
+```{r}
+#| label: import data 
+library(readr)
+#csf <- read_csv(here::here("Data", "csf.csv")) #biomarkers data
+#mri <- read_csv(here::here("Data", "mri.csv")) #mri scan data
+uds <- read_csv(here::here("data/NACC_data/original_data/data_cleaned/uds.csv")) #questionare data
+#"data/NACC_data/original_data/data_cleaned/usd.csv"
+```
+
+```{r}
+#| label: data wrangle
+
+# select predictors
+predictors_df <- uds |> select(
+  NACCID,
+  SEX,
+  EDUC,
+  NACCAGE,
+  VEG,
+  ANIMALS,
+  TRAILA,
+  TRAILB,
+  CRAFTDRE,
+  MINTTOTS,
+# DIGBACCT,   #bad performing
+  MEMPROB,
+  DROPACT,
+  WRTHLESS,
+  BETTER,
+  BORED,
+  HELPLESS,
+  TAXES,
+  BILLS,
+  REMDATES,
+  TRAVEL,
+  MEALPREP,
+  GAMES,
+  NACCUDSD
+)
+
+predictors_df <- predictors_df |>
+   mutate(
+   SEX = SEX |> 
+      as.factor() |>
+      relevel(ref = "1"), #Male
+   MEMPROB = MEMPROB |> 
+      as.factor() |>
+      relevel(ref = "0"), #No 
+   DROPACT = DROPACT |> 
+      as.factor() |>
+      relevel(ref = "0"), #No
+   WRTHLESS = WRTHLESS |> 
+      as.factor() |>
+      relevel(ref = "0"), #No
+   BETTER = BETTER |> 
+      as.factor() |>
+      relevel(ref = "0"), #No 
+   BORED = BORED |> 
+      as.factor() |>
+      relevel(ref = "0"), #No
+   HELPLESS = HELPLESS |> 
+      as.factor() |>
+      relevel(ref = "0"), #No
+   TAXES = TAXES |> 
+      as.factor() |>
+      relevel(ref = "0"), #Normal
+   BILLS = BILLS |> 
+      as.factor() |>
+      relevel(ref = "0"), #Normal
+   REMDATES = REMDATES |> 
+      as.factor() |>
+      relevel(ref = "0"), #Normal
+   MEALPREP = MEALPREP |> 
+      as.factor() |>
+      relevel(ref = "0"), #Normal
+   GAMES = GAMES |> 
+      as.factor() |>
+      relevel(ref = "0")  #Normal
+   )
+  
+#create 2 seperate dataset with just MCI vs AD and HC vs Not HC  
+#(0 and 1s are for the logistic regression Model)
+HC_notHC_set <- predictors_df |>
+  filter(NACCUDSD == "1" | NACCUDSD == "3" | NACCUDSD == "4") |>
+  mutate(cog_stat = case_when(NACCUDSD == 1 ~ "0",          #HC = 0
+                              NACCUDSD == 3 ~ "1",      #Not HC = 1
+                              NACCUDSD == 4 ~ "1")) |> na.omit() 
+
+MCI_AD_set <- predictors_df |>
+  filter(NACCUDSD == "3" | NACCUDSD == "4") |>
+  mutate(cog_stat = case_when(NACCUDSD == 3 ~ "0",         #MCI = 0, AD = 1
+                              NACCUDSD == 4 ~ "1")) |> na.omit() 
+
+HC_notHC_set <- HC_notHC_set |>
+   mutate(
+    cog_stat = cog_stat |> 
+      as.factor() |>
+      relevel(ref = "0")
+  )
+MCI_AD_set <- MCI_AD_set |>
+   mutate(
+    cog_stat = cog_stat |> 
+      as.factor() |>
+      relevel(ref = "0")
+   )
+    
+```
+
+cat: SEX, MEMPROB, DROPACT, WRTHLESS, BETTER, BORED, HELPLESS, TAXES, BILLS, REMDATES, MEALPREP, GAMES
+
+num: EDUC, NACCAGE, VEG, ANIMALS, TRAILA, TRAILB, CRAFTEDRE, MINTOTS
+
+## Modeling
+
+```{r}
+#| label: splitting training and holdout for both data sets
+set.seed(236967)
+HC_notHC_set_split <- initial_split(
+  HC_notHC_set,
+  prop = 0.8 
+)
+
+HC_notHC_set_training <- training(HC_notHC_set_split)
+HC_notHC_set_holdout <- testing(HC_notHC_set_split)
+
+set.seed(236967)
+MCI_AD_set_split <- initial_split(
+  MCI_AD_set,
+  prop = 0.8 
+)
+
+MCI_AD_set_training <- training(MCI_AD_set_split)
+MCI_AD_set_holdout <- testing(MCI_AD_set_split)
+```
+
+```{r}
+#| label: null model
+HC_notHC_set_training |>
+  tabyl(cog_stat)
+
+MCI_AD_set_training |>
+  tabyl(cog_stat)
+```
+
+Impairment Not MCI group is left out for both Models
+
+Not HC vs HC Null Model:
+
+-   About 38% of patients are not in HC group, if we say for the Null Model that everyone is predicted not HC, then this will predict that everyone has a 38% chance of not being in the HC group compared to 62% of HC
+
+MCI vs AD Null Model:
+
+-   Healthy control is removed in this model
+-   About 35% of patients are AD patients, if we say for the Null Model that everyone is predicted to have AD, then this will predict that everyone has a 35% chance of having AD compared to 64% of MCI
+
+```{r}
+#| label: fit the glm for everything
+
+HC_notHC_logistic_1 <- glm(
+  cog_stat ~ SEX + EDUC + NACCAGE + VEG + ANIMALS + TRAILA + TRAILB + CRAFTDRE + MINTTOTS + MEMPROB + DROPACT + WRTHLESS + BETTER + BORED + HELPLESS + TAXES + BILLS + REMDATES + MEALPREP + GAMES , 
+  data = HC_notHC_set_training,
+  family = "binomial"      #keep binomial?
+)
+
+#sometimes do this at the very end
+HC_notHC_logistic_1 |>
+  tidy()
+
+MCI_AD_logistic_1 <- glm(
+  cog_stat ~ SEX + EDUC + NACCAGE + VEG + ANIMALS + TRAILA + TRAILB + CRAFTDRE + MINTTOTS  + MEMPROB + DROPACT + WRTHLESS + BETTER + BORED + HELPLESS + TAXES + BILLS + REMDATES + MEALPREP + GAMES, 
+  data = MCI_AD_set_training,
+  family = "binomial"      #keep binomial?
+)
+
+#sometimes do this at the very end
+MCI_AD_logistic_1 |>
+  tidy()
+```
+
+```{r}
+#| label: predictions
+
+HC_notHC_logr1_pred <- HC_notHC_logistic_1 |>
+  augment(newdata = HC_notHC_set_holdout,
+          type.predict = "response")
+
+HC_notHC_logr1_predictions <- HC_notHC_logr1_pred |>
+  mutate(
+    predicted_class = if_else(
+      .fitted > 0.5, # more likely to be not HC than HC, can adjust 
+      "1", # Not HC
+      "0" # HC
+    ) |>
+      as.factor() |> # convert to factor
+      relevel(ref = "0") # define reference level
+  )
+
+
+MCI_AD_logr1_pred <- MCI_AD_logistic_1 |>
+  augment(newdata = MCI_AD_set_holdout,
+          type.predict = "response")
+
+MCI_AD_logr1_predictions <- MCI_AD_logr1_pred |>
+  mutate(
+    predicted_class = if_else(
+      .fitted > 0.5, # more likely to be AD than MCI, can adjust 
+      "1", # AD
+      "0" # MCI
+    ) |>
+      as.factor() |> # convert to factor
+      relevel(ref = "0") # define reference level
+  )
+```
+
+```{r}
+#| label: confusion matrix
+HC_notHC_logr1_predictions |>
+  conf_mat(
+    truth = cog_stat, # row variable
+    estimate = predicted_class # column variable
+  )
+
+MCI_AD_logr1_predictions |>
+  conf_mat(
+    truth = cog_stat, # row variable
+    estimate = predicted_class # column variable
+  )
+```
+
+```{r}
+#| label: get ROC curve
+HC_notHC_logr1_roc_curve <- HC_notHC_logr1_predictions |>
+  roc_curve(truth = cog_stat,
+            .fitted,
+            event_level = "second")
+
+MCI_AD_logr1_roc_curve <- MCI_AD_logr1_predictions |>
+  roc_curve(truth = cog_stat,
+            .fitted,
+            event_level = "second")
+```
+
+```{r}
+#| label: reading ROC curve
+HC_notHC_logr1_roc_curve |> head(4)
+
+MCI_AD_logr1_roc_curve |> head(4)
+
+```
+
+```{r}
+#| label: plot ROC curve
+autoplot(HC_notHC_logr1_roc_curve) +
+  theme(
+    axis.title = element_text(size = 24),
+    axis.text = element_text(size = 16)
+  )
+
+autoplot(MCI_AD_logr1_roc_curve) +
+  theme(
+    axis.title = element_text(size = 24),
+    axis.text = element_text(size = 16)
+  )
+```
+
+```{r}
+#| label: area under the roc curve
+
+HC_notHC_logr1_predictions |>
+  roc_auc(truth = cog_stat,
+            .fitted,
+            event_level = "second")
+
+MCI_AD_logr1_predictions |>
+  roc_auc(truth = cog_stat,
+            .fitted,
+            event_level = "second")
+
+```
+
+## KFolds
+
+```{r}
+#| label: kfold split
+set.seed(2848)
+HC_notHC_split <- vfold_cv(
+  HC_notHC_set_training, # always use the training set
+  v = 10, # number of folds
+  repeats = 2 # only one set of 10 folds
+)
+
+set.seed(2848)
+MCI_AD_split <- vfold_cv(
+  MCI_AD_set_training, # always use the training set
+  v = 10, # number of folds
+  repeats = 2 # only one set of 10 folds
+)
+```
+
+```{r}
+#| label: function for prediction
+
+HC_notHC_prediction <- function(split){
+  # our input is the cross-validated split
+  
+  HC_notHC_train <- training(split)
+  HC_notHC_valid <- testing(split)
+
+  ## Don't forget the family = "binomial" argument!  
+  HC_notHC_glm1 <- glm(cog_stat ~ SEX + EDUC + NACCAGE + VEG + ANIMALS + TRAILA + TRAILB + CRAFTDRE + MINTTOTS + MEMPROB + DROPACT + WRTHLESS + BETTER + BORED + HELPLESS + TAXES + BILLS + REMDATES + MEALPREP + GAMES
+                    , data = HC_notHC_train, family = "binomial")
+#everything model
+  
+    HC_notHC_glm2 <- glm(cog_stat ~ CRAFTDRE + TAXES + REMDATES + BILLS + TRAILB + TRAVEL + VEG + ANIMALS + MEMPROB + MINTTOTS
+                    , data = HC_notHC_train, family = "binomial")
+#top 10 from random forest 
+   
+    HC_notHC_glm3 <- glm(cog_stat ~ CRAFTDRE + TAXES + REMDATES + BILLS
+                    , data = HC_notHC_train, family = "binomial") 
+    
+#50 and above on importance plot
+  HC_notHC_glm_null <- glm(cog_stat ~ 1, data = HC_notHC_train, 
+                           family = "binomial")
+  # always include the null model
+  
+HC_notHC_valid_predictions <- HC_notHC_valid |>
+    mutate(
+  ## Don't forget the type = "response" argument!
+      HC_notHC_pred1 = predict(HC_notHC_glm1, newdata = HC_notHC_valid, 
+                               type = "response"),
+      HC_notHC_pred2 = predict(HC_notHC_glm2, newdata = HC_notHC_valid, 
+                               type = "response"),
+      HC_notHC_pred3 = predict(HC_notHC_glm3, newdata = HC_notHC_valid, 
+                               type = "response"),
+      HC_notHC_pred_null = predict(HC_notHC_glm_null, newdata = HC_notHC_valid,
+                                   type = "response")
+    )
+  
+  return(HC_notHC_valid_predictions)
+}
+
+
+MCI_AD_prediction <- function(split){
+  # our input is the cross-validated split
+  
+  MCI_AD_train <- training(split)
+  MCI_AD_valid <- testing(split)
+
+  ## Don't forget the family = "binomial" argument!  
+  MCI_AD_glm1 <- glm(cog_stat ~ SEX + EDUC + NACCAGE + VEG + ANIMALS + TRAILA + TRAILB + CRAFTDRE + MINTTOTS + MEMPROB + DROPACT + WRTHLESS + BETTER + BORED + HELPLESS + TAXES + BILLS + REMDATES + MEALPREP + GAMES
+                       , data = MCI_AD_train, family = "binomial")
+#everything model
+  MCI_AD_glm2 <- glm(cog_stat ~ TAXES + BILLS + TRAVEL + REMDATES + MEALPREP + CRAFTDRE + GAMES + ANIMALS + VEG + TRAILB
+                       , data = MCI_AD_train, family = "binomial")
+#top 10 from random forest importance plot
+  MCI_AD_glm3 <- glm(cog_stat ~ TAXES + BILLS + TRAVEL + REMDATES + MEALPREP
+                       , data = MCI_AD_train, family = "binomial")
+#50 importance and above
+  MCI_AD_glm_null <- glm(cog_stat ~ 1, data = MCI_AD_train, 
+                           family = "binomial")
+  # always include the null model
+  
+MCI_AD_valid_predictions <- MCI_AD_valid |>
+    mutate(
+  ## Don't forget the type = "response" argument!
+      MCI_AD_pred1 = predict(MCI_AD_glm1, newdata = MCI_AD_valid, 
+                               type = "response"),
+      MCI_AD_pred2 = predict(MCI_AD_glm2, newdata = MCI_AD_valid, 
+                               type = "response"),
+      MCI_AD_pred3 = predict(MCI_AD_glm3, newdata = MCI_AD_valid, 
+                               type = "response"),
+      MCI_AD_pred_null = predict(MCI_AD_glm_null, newdata = MCI_AD_valid,
+                                   type = "response")
+    )
+  
+  return(MCI_AD_valid_predictions)
+}
+```
+
+```{r}
+#| label: map the predictions
+HC_notHC_mapped_predictions <- map(
+  HC_notHC_split$splits, # list to apply a function to
+  HC_notHC_prediction # function to apply
+)
+
+MCI_AD_mapped_predictions <- map(
+  MCI_AD_split$splits, # list to apply a function to
+  MCI_AD_prediction # function to apply
+)
+#HC_notHC_mapped_predictions[[1]] |>
+#  select(HC_notHC_pred1, HC_notHC_pred_null, cog_stat, everything()) |>
+#  slice(c(1:3))
+```
+
+```{r}
+#| label: create df of predictions
+
+HC_notHC_mapped_predictions_df <- HC_notHC_mapped_predictions |>
+  bind_rows(
+    .id = "fold" # give an id column to know which fold
+  )
+
+MCI_AD_mapped_predictions_df <- MCI_AD_mapped_predictions |>
+  bind_rows(
+    .id = "fold" # give an id column to know which fold
+  )
+
+#HC_notHC_mapped_predictions_df |>
+#  dplyr::select(fold, NACCID, cog_stat, HC_notHC_pred1, HC_notHC_pred_null, #everything()) |>
+#  slice(c(3,8,15))
+```
+
+```{r}
+#| label: evaluate by auc-by fold
+HC_notHC_glm1_auc_by_fold <- HC_notHC_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    HC_notHC_pred1,
+    event_level = "second"
+  )
+HC_notHC_glm1_auc_by_fold
+
+HC_notHC_glm2_auc_by_fold <- HC_notHC_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    HC_notHC_pred2,
+    event_level = "second"
+  )
+HC_notHC_glm2_auc_by_fold
+
+HC_notHC_glm3_auc_by_fold <- HC_notHC_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    HC_notHC_pred3,
+    event_level = "second"
+  )
+HC_notHC_glm3_auc_by_fold
+
+HC_notHC_null_auc_by_fold <- HC_notHC_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    HC_notHC_pred_null,
+    event_level = "second"
+  )
+HC_notHC_null_auc_by_fold
+
+MCI_AD_glm1_auc_by_fold <- MCI_AD_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    MCI_AD_pred1,
+    event_level = "second"
+  )
+MCI_AD_glm1_auc_by_fold
+
+MCI_AD_glm2_auc_by_fold <- MCI_AD_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    MCI_AD_pred2,
+    event_level = "second"
+  )
+MCI_AD_glm2_auc_by_fold
+
+MCI_AD_glm3_auc_by_fold <- MCI_AD_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    MCI_AD_pred3,
+    event_level = "second"
+  )
+MCI_AD_glm3_auc_by_fold
+
+MCI_AD_null_auc_by_fold <- MCI_AD_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    MCI_AD_pred_null,
+    event_level = "second"
+  )
+MCI_AD_null_auc_by_fold
+```
+
+```{r}
+#| label: compute average AUC
+HC_notHC_glm1_average_auc <- HC_notHC_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    HC_notHC_pred1,
+    event_level = "second"
+  ) |>
+  pull(.estimate) |>
+  mean()
+
+HC_notHC_glm2_average_auc <- HC_notHC_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    HC_notHC_pred2,
+    event_level = "second"
+  ) |>
+  pull(.estimate) |>
+  mean()
+
+HC_notHC_glm3_average_auc <- HC_notHC_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    HC_notHC_pred3,
+    event_level = "second"
+  ) |>
+  pull(.estimate) |>
+  mean()
+
+HC_notHC_null_average_auc <- HC_notHC_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    HC_notHC_pred_null,
+    event_level = "second"
+  ) |>
+  pull(.estimate) |>
+  mean()
+
+MCI_AD_glm1_average_auc <- MCI_AD_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    MCI_AD_pred1,
+    event_level = "second"
+  ) |>
+  pull(.estimate) |>
+  mean()
+
+MCI_AD_glm2_average_auc <- MCI_AD_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    MCI_AD_pred2,
+    event_level = "second"
+  ) |>
+  pull(.estimate) |>
+  mean()
+
+MCI_AD_glm3_average_auc <- MCI_AD_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    MCI_AD_pred3,
+    event_level = "second"
+  ) |>
+  pull(.estimate) |>
+  mean()
+
+MCI_AD_null_average_auc <- MCI_AD_mapped_predictions_df |>
+  group_by(fold) |>
+  roc_auc(
+    truth = cog_stat,
+    MCI_AD_pred_null,
+    event_level = "second"
+  ) |>
+  pull(.estimate) |>
+  mean()
+```
+
+```{r}
+#| label: output average AUC
+
+tibble(
+  model = c("Model 1", "Model 2", "Model 3", "Null Model"),
+  AUC = c(HC_notHC_glm1_average_auc, HC_notHC_glm2_average_auc, HC_notHC_glm3_average_auc, HC_notHC_null_average_auc)
+  )
+
+tibble(
+  model = c("Model 1", "Model 2", "Model 3", "Null Model"),
+  AUC = c(MCI_AD_glm1_average_auc, MCI_AD_glm2_average_auc, MCI_AD_glm3_average_auc, MCI_AD_null_average_auc)
+  )
+
+```
