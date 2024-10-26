@@ -1,0 +1,205 @@
+---
+title: "modeling-combined-slnn"
+format: html
+editor: visual
+---
+
+## Code results:
+
+confusion Matrix: Truth Prediction HC Impaired MCI AD HC 985 66 160 4 Impaired 0 0 0 0 MCI 98 21 234 50 AD 3 1 45 170
+
+ROC AUC: .estimator: hand_till .estimate: 0.8057078
+
+## Libraries
+
+```{r Libraries}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyverse) 
+library(tidymodels) #Modeling
+library(ranger)
+library(probably)
+library(vip)
+library(yardstick)
+library(rpart.plot)
+```
+
+## Load in Data
+
+```{r Load necessary AD data}
+#Cleaned data from PI
+mri <- read.csv(here::here("data/NACC_data/original_data/data_cleaned/mri.csv"))
+uds <- read.csv(here::here("data/NACC_data/original_data/data_cleaned/uds.csv"))
+
+```
+
+## Data Wrangling
+
+```{r select uds}
+df_list <- list(mri, uds)
+merged_data <- df_list %>% reduce(full_join, by="NACCID")
+
+mergedseldf <- merged_data |> select(
+  NACCID,
+  #UDS PREDICTORS
+  SEX,
+  EDUC,
+  NACCAGE,
+  VEG,
+  ANIMALS,
+  TRAILA,
+  TRAILB,
+  CRAFTDRE,
+  MINTTOTS,
+  DIGBACCT,
+  MEMPROB,
+  DROPACT,
+  WRTHLESS,
+  BETTER,
+  BORED,
+  HELPLESS,
+  TAXES,
+  BILLS,
+  REMDATES,
+  TRAVEL, 
+  #Extra predictors
+  MEALPREP,
+  GAMES,
+  #MRI PREDICTORS
+  #LPOSCINM,
+  #RPOSCINM,
+  #LHIPPO,
+  #RHIPPO,
+  #RESPONSES
+  NACCUDSD
+)
+
+
+```
+
+```{r WRANGLING UDSD TO COGSTAT}
+#FACTORING NACCUDSD TO COGNITIVE STATUS ALL
+cog_status <- factor(mergedseldf$NACCUDSD,
+                     levels = c(1, 2, 3, 4),
+                     labels = c("HC", "Impaired", "MCI", "AD"))
+
+# complete cases of MCI and AD subject
+factor_vars <- c("TAXES", "BILLS", "REMDATES", "TRAVEL", "MEMPROB", 
+                 "DROPACT", "WRTHLESS", "BETTER", "BORED", "HELPLESS", "SEX")
+
+# All (HC, NON-MCI, MCI, AD)
+
+factoredADalldf <- mergedseldf %>%
+  # Factor multiple variables using across
+  mutate(across(all_of(factor_vars), factor)) %>%
+  # Factor the cog_status variable separately
+  mutate(cog_status = factor(cog_status)) %>%
+  # Select columns, excluding NACCUDSD
+  select(-NACCUDSD, -NACCID) %>%
+  na.omit()
+```
+
+```{r Training and Test Set}
+set.seed(777)
+udscog_split <- initial_split(factoredADalldf, prop = 0.75)
+udscog_train <- training(udscog_split)
+udscog_test <- testing(udscog_split)
+```
+
+## Modeling
+
+```{r nnnC}
+neuralnetC_model <- mlp(mode = "classification", engine = "keras",
+                        hidden_units = tune(),
+                        dropout = tune(),
+                        epochs = 25,
+                        activation = "relu") |>
+  set_args(seeds = c(1, 2, 3)) # we need to set 3 seeds 
+# let's tune the dropout parameter instead
+
+neuralnetC_recipe <- recipe(
+  cog_status ~ .,
+  data = udscog_train
+) |>
+  step_YeoJohnson(all_numeric_predictors()) |> 
+  step_normalize(all_numeric_predictors()) |>
+  step_dummy(all_nominal_predictors())
+# no nominal predictors here so won't do anything
+
+neuralnetC_wflow <- workflow() |>
+  add_model(neuralnetC_model) |>
+  add_recipe(neuralnetC_recipe)
+```
+
+```{r check defaults nnC}
+extract_parameter_set_dials(neuralnetC_model) |>
+  pull("object")
+```
+
+```{r tune parameters nnC}
+set.seed(1332)
+AD_kfold_2 <- vfold_cv(udscog_train, v = 10, repeats = 2) 
+
+
+neuralnetC_tune <- tune_grid(neuralnetC_model, 
+                      neuralnetC_recipe, 
+                      resamples = AD_kfold_2, 
+                      metrics = metric_set(mn_log_loss),
+                      grid = grid_regular(hidden_units(range = c(16, 32)),
+                                          dropout(range = c(0, 0.1)),
+                                          levels = 3)
+)
+```
+
+```{r select best nnC}
+collect_metrics(neuralnetC_tune)
+
+neuralnetC_best <- select_by_one_std_err(
+  neuralnetC_tune,
+  metric = "mn_log_loss",
+  hidden_units, desc(dropout)
+)
+neuralnetC_best
+
+neuralnetC_wflow_final <- finalize_workflow(neuralnetC_wflow, 
+                                            parameters = neuralnetC_best) 
+
+```
+
+```{r fit nnC}
+neuralnetC_fit <- fit(neuralnetC_wflow_final, data = udscog_train)
+neuralnetC_fit
+```
+
+```{r augment neuralnetC fit ALL}
+predictionsALL_neuralnetC <- broom::augment(neuralnetC_fit, new_data = udscog_test)
+predictionsALL_neuralnetC |> dplyr::select(
+  # NACCID, missing in data wrangling
+  cog_status, .pred_class, .pred_HC, .pred_Impaired, .pred_MCI, .pred_AD
+)
+```
+
+```{r Classification Accuracy metric}
+#confusion matrix
+confusion_slnn <- conf_mat(predictionsALL_neuralnetC, truth = cog_status, estimate = .pred_class)
+confusion_slnn
+
+#confusion_dt
+
+# ROC
+## construct roc curve
+roc_tibble_slnn <- roc_curve(predictionsALL_neuralnetC, truth = cog_status, .pred_HC, .pred_Impaired, .pred_MCI, .pred_AD)
+
+
+## Plot ROC curve
+autoplot(roc_tibble_slnn) + labs(title = "ROC Curve for Neural Network ALL")
+#autoplot(roc_tibble_dt) + labs(title = "ROC Curve for Random Forest")
+
+## AUC
+roc_auc(predictionsALL_neuralnetC, truth = cog_status, .pred_HC, .pred_Impaired, .pred_MCI, .pred_AD)
+
+# Cross-entropy:
+# mn_log_loss(predictions_neuralnetC, truth = cog_status, .pred_HC, 
+#            event_level = "first")
+```
