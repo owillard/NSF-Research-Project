@@ -1,6 +1,5 @@
 ---
 title: "Modeling - Logistic Regression"
-author: "Kent T"
 format: html
 ---
 
