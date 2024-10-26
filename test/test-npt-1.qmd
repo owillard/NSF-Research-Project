@@ -1,0 +1,182 @@
+---
+title: "NPT Testing"
+author: "Yvette Vargas"
+format: html
+---
+July 12, 2024
+
+```{r}
+library(tidyverse)
+
+uds <- read.csv("/Users/yvargas/SoCalDataScience/socalDS-group-5/NACC_data/data_cleaned/uds.csv")
+
+cog_status <- factor(uds$NACCUDSD,
+                     levels = c(1, 2, 3, 4),
+                     labels = c("HC", "Impaired-not-MCI", "MCI", "AD"))
+
+uds_mci_ad_only <- uds %>%
+  mutate(cog_status) %>%
+  filter(NACCUDSD == 3 | NACCUDSD == 4)
+```
+
+
+# TRAIL A AND TRAIL B
+```{r}
+cog_and_trail_df <- uds %>%
+  select(NACCID, TRAILA, TRAILB) %>%
+  mutate(cog_status)
+
+# Is there a significant difference between each test (A and B)?
+    # p-value < 0.05
+    # reject the null hypothesis, conclude evidence for the alternative that the true mean difference
+    # between Trail A and B test scores is not equal to 0.
+    # sample mean difference: Subjects took 88.8 seconds longer on Trail B than Trail A on average.
+trail_a_vs_b <- t.test(uds$TRAILA, uds$TRAILB, paired = TRUE)
+trail_a_vs_b
+
+# Is there a significant difference in Trail A scores across each cognitive status group?
+    # p-value < 0.05
+    # indicates that there is a significant difference in Trail A scores across cognitive status groups.
+    # Tukey: All pairwise comparisons for cognitive status are significant, indicating that each
+    #        pair has a significantly different mean test scores.
+    # For example, AD vs MCI: AD subjects took 29.25 seconds longer on average than MCI subjects to complete Trail A.
+trail_a_anova <- aov(TRAILA ~ cog_status, data = cog_and_trail_df)
+summary(trail_a_anova)
+TukeyHSD(trail_a_anova)
+
+
+# Is there a significant difference in Trail B scores across each cognitive status group?
+    # p-value < 0.05
+    # indicates that there is a significant difference in Trail B scores across cognitive status groups.
+    # Tukey: All pairwise comparisons for cognitive status are significant, indicating that each
+    #        pair has a significantly different mean test scores.
+    # For example, AD vs MCI: AD subjects took 70.09 seconds longer on average than MCI subjects to complete Trail B.
+trail_b_anova <- aov(TRAILB ~ cog_status, data = cog_and_trail_df)
+summary(trail_b_anova)
+TukeyHSD(trail_b_anova)
+
+
+# Are the means of both test scores the same across each level of cognitive status?
+    # p-value < 0.05
+    # reject the null hypothesis that the means of the tests scores are equal across the levels of
+    # cognitive status
+trail_a_b_manova <- manova(cbind(TRAILA, TRAILB) ~ cog_status, data = cog_and_trail_df)
+summary(trail_a_b_manova)
+
+#############################################################################
+# EDUCATION AND TRAIL TESTS
+#############################################################################
+# Does the number of years of education affect how long it takes a subject to complete a trail?
+    # Is education linearly associated with Trail A scores?
+        # The linear association is negative, meaning that as the number of years of education
+        # increases, the time needed to complete the trail decreases. However, there is not a
+        # strong linear association (-0.26). (-0.30 for Trail B)
+    # linear model
+        # R-squared = 0.068, so roughly 7% of the variance in Trail A scores is explained. (9% for Trail B)
+        # Bad models :(
+cor.test(uds$TRAILA, uds$EDUC)
+mod_a <- lm(TRAILA ~ EDUC, data = uds)
+summary(mod_a)
+
+cor.test(uds$TRAILB, uds$EDUC)
+mod_b <- lm(TRAILB ~ EDUC, data = uds)
+summary(mod_b)
+```
+
+
+# ANIMAL AND VEGETABLE
+```{r}
+anim_veg_df <- uds %>%
+  select(NACCID, ANIMALS, VEG) %>%
+  mutate(cog_status)
+
+# Is there a significant difference between each test (ANIMALS and VEG)?
+    # p-value < 0.05
+    # reject the null hypothesis, conclude evidence for the alternative that the true mean difference
+    # between Animals and Vegetable scores is not equal to 0.
+    # sample mean difference: Subjects named 4.96 more animals than vegetables on average.
+anim_vs_veg <- t.test(uds$ANIMALS, uds$VEG, paired = TRUE)
+anim_vs_veg
+
+# Is there a significant difference in Animal scores across each cognitive status group?
+    # p-value < 0.05
+    # indicates that there is a significant difference in animals scores across cognitive status groups.
+    # Tukey: All pairwise comparisons for cognitive status are significant, indicating that each
+    #        pair has a significantly different mean test scores.
+    # For example, AD vs MCI: AD subjects named 5.81 fewer animals on average than MCI subjects.
+anim_vs_cog <- aov(ANIMALS ~ cog_status, data = anim_veg_df)
+summary(anim_vs_cog)
+TukeyHSD(anim_vs_cog)
+
+# Is there a significant difference in vegetable scores across each cognitive status group?
+  # p-value < 0.05
+  # indicates that there is a significant difference in vegetable scores across cognitive status groups.
+  # Tukey: All pairwise comparisons for cognitive status are significant, indicating that each
+  #        pair has a significantly different mean test scores.
+  # For example, AD vs MCI: AD subjects named 4.38 fewer vegetables on average than MCI subjects.
+veg_vs_cog <- aov(VEG ~ cog_status, data = anim_veg_df)
+summary(veg_vs_cog)
+TukeyHSD(veg_vs_cog)
+```
+
+# In order of importance (F-value)
+
+VEG (9700)
+ANIMALS (9102)
+TRAILB (4798)
+TRAILA (4782)
+
+
+```{r}
+craft_df <- uds %>%
+  select(NACCID, CRAFTDRE, MINTTOTS, DIGBACCT) %>%
+  mutate(cog_status)
+
+craft_vs_cog <- aov(CRAFTDRE ~ cog_status, data = craft_df)
+summary(craft_vs_cog)
+
+min_vs_cog <- aov(MINTTOTS ~ cog_status, data = craft_df)
+summary(min_vs_cog)
+
+dig_vs_cog <- aov(DIGBACCT ~ cog_status, data = craft_df)
+summary(dig_vs_cog)
+```
+
+```{r}
+fas_df <- uds %>%
+  select(TAXES, BILLS, REMDATES, TRAVEL, NACCID, GAMES, MEALPREP) %>%
+  mutate(cog_status)
+
+tax_vs_cog <- aov(TAXES ~ cog_status, data = fas_df)
+summary(tax_vs_cog)
+
+bill_vs_cog <- aov(BILLS ~ cog_status, data = fas_df)
+summary(bill_vs_cog)
+
+date_vs_cog <- aov(REMDATES ~ cog_status, data = fas_df)
+summary(date_vs_cog)
+
+trav_vs_cog <- aov(TRAVEL ~ cog_status, data = fas_df)
+summary(trav_vs_cog)
+
+games_vs_cog <- aov(GAMES ~ cog_status, data = fas_df)
+summary(games_vs_cog)
+
+meal_vs_cog <- aov(MEALPREP ~ cog_status, data = fas_df)
+summary(meal_vs_cog)
+```
+
+```{r}
+demo_df <- uds %>%
+  select(NACCAGE, EDUC, SEX, NACCID) %>%
+  mutate(cog_status)
+
+age_vs_cog <- aov(NACCAGE ~ cog_status, data = demo_df)
+summary(age_vs_cog)
+
+sex_vs_cog <- aov(SEX ~ cog_status, data = demo_df)
+summary(sex_vs_cog)
+
+educ_vs_cog <- aov(EDUC ~ cog_status, data = demo_df)
+summary(educ_vs_cog)
+```
