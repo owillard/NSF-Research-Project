@@ -1,0 +1,313 @@
+---
+title: "Modeling SVM"
+author: "Yvette Vargas"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(e1071)
+library(tidyverse)
+library(tidymodels)
+library(janitor)
+
+###########################################################################
+uds <- read_csv(here::here("data/NACC_data/original_data/data_cleaned/uds.csv"))
+
+udsselect <- c("SEX", "EDUC", "NACCAGE",
+        "VEG", "ANIMALS", "TRAILA", "TRAILB", "CRAFTDRE", "MINTTOTS",
+        "MEMPROB", "DROPACT", "WRTHLESS", "BETTER", "BORED", "HELPLESS",
+        "TAXES", "BILLS", "REMDATES", "TRAVEL", "MEALPREP", "GAMES",
+        "NACCUDSD")
+
+udsselect <- c("CRAFTDRE", "TAXES", "REMDATES", "BILLS", "NACCUDSD")
+
+categorical_vars <- c("SEX", "MEMPROB", "DROPACT", "WRTHLESS", "BETTER",
+                  "BORED", "HELPLESS", "TAXES", "BILLS", "REMDATES",
+                  "TRAVEL", "MEALPREP", "GAMES")
+
+categorical_vars <- c("TAXES", "REMDATES", "BILLS", "NACCUDSD")
+```
+
+```{r}
+new_uds <- uds %>%
+  select(all_of(udsselect)) %>%
+  mutate(across(all_of(categorical_vars), as.factor))
+```
+
+# HC VS Not HC
+```{r}
+HC_notHC_set <- new_uds |>
+  filter(NACCUDSD == "1" | NACCUDSD == "3" | NACCUDSD == "4") |>
+  mutate(cog_status = as.factor(
+    case_when(NACCUDSD == 1 ~ "HC",
+                              NACCUDSD == 3 ~ "NHC",
+                              NACCUDSD == 4 ~ "NHC"))) |>
+  select(-NACCUDSD) |>
+  na.omit()
+
+# HC_notHC_train |>
+#   tabyl(cog_status)
+```
+
+When cost is small, margins will be wide, more room for error, more tolerance for misclassification
+
+```{r}
+set.seed(777)
+svm_split <- initial_split(HC_notHC_set, prop = 0.8)
+HC_notHC_train <- training(svm_split)
+HC_notHC_test <- testing(svm_split)
+
+################################################
+HC_notHC_svm_fit <- svm(cog_status ~ ., data = HC_notHC_train, kernel = "linear", cost = 10, scale = TRUE, cross = 10)
+
+summary(HC_notHC_svm_fit)
+# 85.40925 accuracy (with MINTIOTS and CRAFTDRE)
+# 85.79004 (udsselect2)
+```
+
+Best cost parameter: 1 (with MINTTOTS and CRAFTDRE)
+Best cost parameter: 0.01 (without)
+Best cost parameter: 100 (udsselect2)
+```{r}
+tuned <- e1071::tune(svm, cog_status ~ ., data = HC_notHC_train, kernel = "linear", ranges = list(cost=c(0.001, 0.01, 0.1, 1, 10, 100)))
+
+summary(tuned)
+```
+
+
+```{r fitting again with adjusted cost}
+# 84.76269 accuracy udsselect2
+HC_notHC_svm_fit <- svm(cog_status ~ ., data = HC_notHC_train, kernel = "linear", cost = 100, scale = TRUE, cross = 10)
+
+
+# 85.59185 accuracy without MINTTOTS and CRAFTDRE
+HC_notHC_svm_fit <- svm(cog_status ~ ., data = HC_notHC_train, kernel = "linear", cost = 0.01, scale = TRUE, cross = 10)
+
+HC_notHC_svm_fit
+summary(HC_notHC_svm_fit)
+```
+
+
+``` {r}
+pred <- predict(HC_notHC_svm_fit, HC_notHC_test, type = "class")
+plot(pred)
+
+table(pred, HC_notHC_test$cog_status)
+
+# Convert predictions and actual values to factors
+actual <- factor(HC_notHC_test$cog_status, levels = c("HC", "NHC"))
+
+# Calculate the ROC curve
+roc_curve <- roc(actual, as.numeric(pred))
+
+# Plot ROC curve
+# plot(roc_curve, col = "red")
+
+# Calculate AUC
+auc_value <- auc(roc_curve)
+print(auc_value)
+
+```
+
+Without MINTOTS and CRAFTDRE:
+(cost = 0.01)
+85.59185 accuracy
+# ROC AUC: 0.8252
+pred    HC  NHC
+  HC  2544  587
+  NHC  177 1476
+  
+With MINTOTS and CRAFTDRE:
+(cost = 1)
+85.40925 accuracy
+pred HC NHC
+HC  836 125
+NHC  48 396
+
+udsselect2
+(cost = 100)
+# ROC AUC: 0.8438
+pred   HC NHC
+  HC  918 204
+  NHC  69 637
+
+# MCI vs. AD
+```{r}
+MCI_AD_set <- new_uds |>
+  filter(NACCUDSD == "3" | NACCUDSD == "4") |>
+  mutate(cog_status = as.factor(case_when(NACCUDSD == 3 ~ "MCI",
+                              NACCUDSD == 4 ~ "AD"))) |>
+  select(-NACCUDSD) |>
+  na.omit()
+
+summary(MCI_AD_set)
+```
+
+```{r}
+set.seed(777)
+svm_split2 <- initial_split(MCI_AD_set, prop = 0.8)
+MCI_AD_train <- training(svm_split2)
+MCI_AD_test <- testing(svm_split2)
+
+################################################
+MCI_AD_svm_fit <- svm(cog_status ~ ., data = MCI_AD_train, kernel = "linear", cost = 10, scale = TRUE, cross = 10)
+
+summary(MCI_AD_svm_fit)
+# 83.54941 accuracy
+# 83.99812 with CRAFTDRE and MINTTOTS
+# 81.2193 udsselect2
+```
+
+Best cost parameter: 10
+Bect cost parameter: 0.01 (udsselect2)
+```{r}
+tuned2 <- e1071::tune(svm, cog_status ~ ., data = MCI_AD_train, kernel = "linear", ranges = list(cost=c(0.001, 0.01, 0.1, 1, 10, 100)))
+
+summary(tuned2)
+```
+
+
+```{r fitting again with adjusted cost}
+MCI_AD_svm_fit <- svm(cog_status ~ ., data = MCI_AD_train, kernel = "linear", cost = 0.01, scale = TRUE, cross = 10)
+
+MCI_AD_svm_fit
+summary(MCI_AD_svm_fit)
+# 81.2193 accuracy
+```
+
+
+``` {r}
+pred <- predict(MCI_AD_svm_fit, MCI_AD_test, type = "class")
+plot(pred)
+table(pred, MCI_AD_test$cog_status)
+
+
+# Convert predictions and actual values to factors
+actual2 <- factor(MCI_AD_test$cog_status, levels = c("MCI", "AD"))
+
+# Calculate the ROC curve
+roc_curve2 <- roc(actual2, as.numeric(pred))
+
+# Plot ROC curve
+# plot(roc_curve, col = "red")
+
+# Calculate AUC
+auc_value2 <- auc(roc_curve2)
+print(auc_value2)
+```
+
+Without MINTOTS and CRAFTDRE:
+(cost = 0.01)
+83.61057 accuracy
+
+pred   AD MCI
+  AD  732 159
+  MCI 197 957
+
+With MINTTOTS and CRAFTDRE:
+# ROC AUC: 0.8391
+(cost = 1)
+83.9512 accuracy
+
+pred   AD MCI
+  AD  139  30
+  MCI  43 321
+
+udsselect2
+(cost = )
+# ROC AUC: 0.8375
+pred   AD MCI
+  AD  335  68
+  MCI  72 391
+
+
+
+
+
+```{r chatgpt imputing data}
+# Assuming you have the data `new_uds`
+
+# Select relevant columns and prepare datasets
+HC_notHC_set <- new_uds %>%
+  filter(NACCUDSD == "1" | NACCUDSD == "3" | NACCUDSD == "4") %>%
+  mutate(cog_status = case_when(
+    NACCUDSD == "1" ~ "HC",
+    NACCUDSD == "3" ~ "NHC",
+    NACCUDSD == "4" ~ "NHC")) %>%
+  select(-NACCUDSD)
+
+# Split the dataset
+set.seed(777)
+svm_split <- initial_split(HC_notHC_set, prop = 0.8)
+HC_notHC_train <- training(svm_split)
+HC_notHC_test <- testing(svm_split)
+
+# Define and prepare the recipe
+recipe <- recipe(cog_status ~ ., data = HC_notHC_train) %>%
+  step_impute_median(all_predictors()) %>%  # Impute missing values
+  step_center(all_predictors()) %>%
+  step_scale(all_predictors())
+
+prepared_recipe <- prep(recipe, training = HC_notHC_train, retain = TRUE)
+
+# Bake (process) the training and test data
+HC_notHC_train_processed <- bake(prepared_recipe, new_data = HC_notHC_train)
+HC_notHC_test_processed <- bake(prepared_recipe, new_data = HC_notHC_test)
+
+# Fit the SVM model
+HC_notHC_svm_fit <- svm(factor(cog_status) ~ ., data = HC_notHC_train_processed, kernel = "linear", cost = 10, scale = FALSE)
+
+# Predict using the test set
+pred <- predict(HC_notHC_svm_fit, HC_notHC_test_processed, type = "class")
+
+# Check lengths
+length(pred)
+length(HC_notHC_test_processed$cog_status)
+
+# Create confusion matrix
+confusion_matrix <- table(pred, HC_notHC_test_processed$cog_status)
+print(confusion_matrix)
+
+# Convert confusion matrix to data frame for plotting
+conf_matrix_df <- as.data.frame(confusion_matrix)
+
+# Plot the results
+ggplot(conf_matrix_df, aes(x = pred, y = Freq, fill = HC_notHC_test_processed$cog_status)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Predicted", y = "Frequency", fill = "Actual") +
+  theme_minimal() +
+  ggtitle("SVM Prediction vs Actual")
+```
+
+```{r}
+
+plot(iris)
+
+plot(iris$Sepal.Length, iris$Sepal.Width, col=iris$Species)
+plot(iris$Petal.Length, iris$Petal.Width, col=iris$Species)
+
+s<-sample(150, 100)
+col<-c("Petal.Length", "Petal.Width", "Species")
+iris_train<-iris[s,col]
+iris_test<-iris[-s,col]
+
+svmfit <- svm(Species ~., data = iris_train, kernel = "linear", cost = .1, scale = FALSE)
+print(svmfit)
+# only works with two dimensions and a response
+plot(svmfit, iris_train[,col])
+
+ iris_train[,col]
+  iris_train
+  
+tuned <- tune(svm, Species ~., data = iris_train, kernel = "linear", ranges = list(cost=c(0.001,0.01,.1,1,10,100)))
+# Will show the optimal cost parameter
+summary(tuned)
+
+p <- predict(svmfit, iris_test[,col], type="class")
+plot(p)
+
+table(p, iris_test[,3])
+mean(p== iris_test[,3])
+```
