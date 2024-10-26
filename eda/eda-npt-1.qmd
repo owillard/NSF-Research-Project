@@ -1,0 +1,176 @@
+---
+title: "NPT EDA"
+author: "Yvette Vargas"
+format: html
+---
+
+July 9, 2024
+July 11, 2024
+
+```{r}
+library(tidyverse)
+
+uds <- read.csv("/Users/yvargas/SoCalDataScience/socalDS-group-5/NACC_data/data_cleaned/uds.csv")
+```
+
+# ANIMALS AND VEG EDA 
+```{r}
+# ANIMAL summary
+summary(uds$ANIMALS)
+
+# in a table format
+uds %>%
+  summarize(
+    min_ANIMALS = min(uds$ANIMALS, na.rm = TRUE), # minimum
+    q1_ANIMALS = quantile(uds$ANIMALS, 0.25, na.rm = TRUE), # lower quartile or Q1
+    med_ANIMALS = median(uds$ANIMALS, na.rm = TRUE), # median
+    q3_ANIMALS = quantile(uds$ANIMALS, 0.75, na.rm = TRUE), # upper quartile or Q3
+    max_ANIMALS = max(uds$ANIMALS, na.rm = TRUE) # maximum
+  )
+
+# ANIMAL distribution
+ggplot(uds, aes(x = ANIMALS)) +
+  geom_histogram()
+ggplot(uds, aes(x = ANIMALS)) +
+  geom_density()
+
+# VEG summary
+summary(uds$VEG)
+
+# VEG score distribution
+ggplot(uds, aes(x = VEG)) +
+  geom_histogram()
+ggplot(uds, aes(x = VEG)) +
+  geom_density()
+
+# boxplots of VEG by NACCUDSD
+uds %>%
+  ggplot(aes(x = factor(NACCUDSD), y = VEG)) +
+  geom_boxplot() +
+  # geom_text(data = means, aes(x = factor(NACCUDSD), y = mean_ANIMALS, label = round(mean_ANIMALS, 2)),
+  #           vjust = -0.5, color = "blue") +
+  scale_x_discrete(labels = c("HC", "Impaired (not MCI)", "MCI", "AD")) +
+  labs(title = "Boxplot of VEG by NACCUDSD", x = "NACCUDSD", y = "VEG")
+
+# tibble of ANIMAL scores > 40
+uds %>%
+  filter(ANIMALS > 40) %>%
+  select(c(ANIMALS, VEG)) %>%
+  as_tibble()
+
+# hist of ANIMAL scores > 40
+uds %>%
+  filter(ANIMALS > 40) %>%
+  ggplot(aes(x = ANIMALS)) +
+    geom_histogram()
+
+# density hist with line of ANIMAL scores
+uds %>%
+  filter(ANIMALS > 40) %>%
+  ggplot(aes(x = ANIMALS)) +
+  geom_histogram(aes(y = ..density..)) +
+  geom_density(color = "red", size = 1)
+
+# boxplot of ANIMALS by NACCUDSD
+uds %>%
+  ggplot(aes(x = factor(NACCUDSD), y = ANIMALS)) +
+  geom_boxplot() +
+  # geom_text(data = means, aes(x = factor(NACCUDSD), y = mean_ANIMALS, label = round(mean_ANIMALS, 2)),
+  #           vjust = -0.5, color = "blue") +
+  scale_x_discrete(labels = c("HC", "Impaired (not MCI)", "MCI", "AD")) +
+  labs(title = "Boxplot of ANIMALS by NACCUDSD", x = "NACCUDSD", y = "ANIMALS")
+
+# means by NACCUDSD
+means <- uds %>%
+  group_by(NACCUDSD) %>%
+  summarize(
+    mean_ANIMALS = mean(ANIMALS, na.rm = TRUE),
+    mean_VEG = mean(VEG, na.rm = TRUE)) %>%
+  mutate(rating = c("HC", "Impaired (not MCI)", "MCI", "AD")) %>%
+  select(NACCUDSD, rating, mean_ANIMALS, mean_VEG) %>%
+  as_tibble()
+means
+```
+
+# TRAIL A AND TRAIL B EDA
+```{r}
+summary(uds$TRAILA)
+
+uds %>%
+  filter(!is.na(TRAILA))
+# 39684 obs
+# 45100 total
+
+ggplot(uds, aes(x = TRAILA)) +
+  geom_histogram()
+
+uds %>%
+  filter(!is.na(TRAILB))
+# 35774 obs
+# 45100 total
+
+ggplot(uds, aes(x = TRAILB)) +
+  geom_histogram()
+ggplot(uds, aes(x = TRAILB)) +
+  geom_density()
+
+# boxplot of TRAILA by NACCUDSD
+# data has a lot of outliers, the mean and median can be quite different.
+uds %>%
+  ggplot(aes(x = factor(NACCUDSD), y = TRAILA, fill = factor(NACCUDSD))) +
+  geom_boxplot(alpha = 0.4) +
+  scale_x_discrete(labels = c("HC", "Impaired-not-MCI", "MCI", "AD")) +
+  labs(title = "Boxplots of Trail A by Cognitive Status", x = "Cognitive Status", y = "Time to Complete Trail A (sec)") +
+  theme_bw() +
+  theme(
+    title = element_text(size = 22),
+    axis.title = element_text(size = 20),
+    axis.text = element_text(size = 16),
+  )  +
+  scale_fill_manual(values = c("#999999", "#E69F00", "#56B4E9", "red")) +
+  theme(legend.position = "none")
+
+
+# boxplot of TRAILB by NACCUDSD
+# data has a lot of outliers, the mean and median can be quite different.
+uds %>%
+  ggplot(aes(x = factor(NACCUDSD), y = TRAILB, fill = factor(NACCUDSD))) +
+  geom_boxplot(alpha = 0.4) +
+  scale_x_discrete(labels = c("HC", "Impaired-not-MCI", "MCI", "AD")) +
+  labs(title = "Boxplot of Trail B by Cognitive Status", x = "Cognitive Status", y = "Time to Complete Trail B (sec)") +
+  theme_bw() +
+  theme(
+    title = element_text(size = 22),
+    axis.title = element_text(size = 20),
+    axis.text = element_text(size = 16),
+  ) +
+  scale_fill_manual(values = c("#999999", "#E69F00", "#56B4E9", "red")) +
+  theme(legend.position = "none")
+
+uds %>%
+  filter(TRAILA == 150) %>%
+  count()
+# 1979
+# 39684 obs
+1979/39684
+# 5 percent
+
+uds %>%
+  filter(TRAILB == 300) %>%
+  count()
+# 4826
+# 35774 obs
+4826/35774
+# 13 percent
+
+# means by NACCUDSD
+trail_means <- uds %>%
+  group_by(NACCUDSD) %>%
+  summarize(
+    mean_TRAILA = mean(TRAILA, na.rm = TRUE),
+    mean_TRAILB = mean(TRAILB, na.rm = TRUE)) %>%
+  mutate(rating = c("HC", "Impaired (not MCI)", "MCI", "AD")) %>%
+  select(NACCUDSD, rating, mean_TRAILA, mean_TRAILB) %>%
+  as_tibble()
+trail_means
+```
