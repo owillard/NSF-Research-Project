@@ -1,0 +1,149 @@
+---
+title: "test-fas"
+author: "Olivia Willard"
+format: html
+---
+
+## Loading Data
+```{r}
+#| label: import data 
+library(readr)
+library(ggplot2)
+
+uds_data <- read_csv(here::here("data/NACC_data/original_data/data_cleaned", "uds.csv")) #questionare data
+
+na.omit(uds_data)
+
+```
+
+## Part 1: Chi Squared testing
+1. Travel: did subject have any difficulty or need help with travelling
+```{r}
+travel_data <- table(uds_data$NACCUDSD, uds_data$TRAVEL)
+chisq.test(travel_data)
+```
+2. Remembering Dates: did subject have any difficulty or need help with remembering appointments, etc.
+```{r}
+remdates_data <- table(uds_data$NACCUDSD, uds_data$REMDATES)
+chisq.test(remdates_data)
+```
+
+
+3. Paying Attention: did subject have any difficulty or need help with paying attention to or understanding tv programs, etc.
+```{r}
+payattn_data <- table(uds_data$NACCUDSD, uds_data$PAYATTN)
+chisq.test(payattn_data)
+```
+
+
+4. Meal Prepping: did subject have any difficulty or need help with preparing a balanced meal
+```{r}
+mealprep_data <- table(uds_data$NACCUDSD, uds_data$MEALPREP)
+chisq.test(mealprep_data)
+```
+
+
+5. Events: did subject have any difficulty or need help with keeping track of current events?
+```{r}
+events_data <- table(uds_data$NACCUDSD, uds_data$EVENTS)
+chisq.test(events_data)
+```
+
+
+6. Shopping: did subject have any difficulty or need help with shopping alone for grocerys, clothes, etc.
+```{r}
+shopping_data <- table(uds_data$NACCUDSD, uds_data$SHOPPING)
+chisq.test(shopping_data)
+```
+
+7. Games: did subject have any difficulty or need help with playing games or working on hobbys
+```{r}
+games_data <- table(uds_data$NACCUDSD, uds_data$GAMES)
+chisq.test(games_data)
+```
+
+8. Stove: did subject have any difficulty or need help with heating water, remembering to turn off the stove
+```{r}
+stove_data <- table(uds_data$NACCUDSD, uds_data$STOVE)
+chisq.test(stove_data)
+```
+
+9. Bills: did subject have any difficulty or need help with paying bills, writing checks, etc.
+```{r}
+bills_data <- table(uds_data$NACCUDSD, uds_data$BILLS)
+chisq.test(bills_data)
+```
+
+10: Taxes: did subject have any difficulty or need help with assemblin tax records, business affairs, or other papers
+```{r}
+taxes_data <- table(uds_data$NACCUDSD, uds_data$TAXES)
+chisq.test(taxes_data)
+```
+
+
+
+## PART 2
+
+A lot of missing data, like almost over 75% of the data is missing for these variables so probably wont use. However for the chi squared tests that did work it did show there was statistical significance
+
+
+11: APPSEV: Appetite and eating severity
+```{r}
+appetite_data <- table(uds_data$NACCUDSD, uds_data$APPSEV)
+chisq.test(appetite_data)
+```
+12: NITESEV: Nighttime behaviors severity
+```{r}
+nighttime_data <- table(uds_data$NACCUDSD, uds_data$NITESEV)
+chisq.test(nighttime_data)
+```
+13: MOTSEV: Motor disturbance severity
+```{r}
+motor_data <- table(uds_data$NACCUDSD, uds_data$MOTSEV)
+chisq.test(motor_data)
+```
+14: IRRSEV: Irritability or lability severity
+```{r}
+irritability_data <- table(uds_data$NACCUDSD, uds_data$IRRSEV)
+chisq.test(irritability_data)
+```
+15: DISNSEV: Disinhibition severity
+```{r}
+disinhibition_data <- table(uds_data$NACCUDSD, uds_data$DISNSEV)
+chisq.test(disinhibition_data)
+```
+16: APASEV: apathy or indifference severity
+```{r}
+apathy_data <- table(uds_data$NACCUDSD, uds_data$APASEV)
+chisq.test(apathy_data)
+```
+17: ELATSEV: elation or euphoria severity
+```{r}
+elation_data <- table(uds_data$NACCUDSD, uds_data$ELATSEV)
+chisq.test(elation_data)
+```
+18: ANXSEV: anxiety severity
+```{r}
+anxiety_data <- table(uds_data$NACCUDSD, uds_data$ANXSEV)
+chisq.test(anxiety_data)
+```
+19: DEPDSEV: depression or dysphoria severity
+```{r}
+depression_data <- table(uds_data$NACCUDSD, uds_data$DEPDSEV)
+chisq.test(depression_data)
+```
+20: AGITSEV: agitation or agression severity
+```{r}
+agitation_data <- table(uds_data$NACCUDSD, uds_data$AGITSEV)
+chisq.test(agitation_data)
+```
+21: HALLSEV: hallucinations severity
+```{r}
+hallucination_data <- table(uds_data$NACCUDSD, uds_data$HALLSEV)
+chisq.test(hallucination_data)
+```
+22: DELSEV: delusions severity
+```{r}
+delusion_data <- table(uds_data$NACCUDSD, uds_data$DELSEV)
+chisq.test(delusion_data)
+```
