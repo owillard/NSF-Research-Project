@@ -1,0 +1,298 @@
+---
+title: "eda-mri"
+format: html
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+
+```{r Libraries}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyverse) 
+library(tidymodels) #Modeling
+library(probably)
+library(vip)
+```
+
+
+## Load in Data
+
+```{r Load necessary AD data}
+mri <- read.csv("mri.csv")
+mriraw <- read.csv("investigator_mri_nacc57.csv")
+uds <- read.csv("investigator_uds_baseline.csv")
+
+```
+
+
+## Research Question:
+Why is there a difference between the diagnosis of MCI and AD (Mildly cognitive impairment/Alzheimer Disease)?
+ - Can the difference be explained by NPTs? (NeuroPsychological Testing)
+ - Does education play a role in NPT scores?
+ - How do the diagnosis affect other factors such as ability to travel, anxiety levels, etc.?
+ - How does progression from MCI to AD affect Brain Volume or Biomarkers?
+ 
+## Main Goal:
+Diagnosing/predicting early stage of MCI/AD with given data and models.
+ - How will we determine if the patient has MCI/AD?
+ - We should use raw data (visit 1-3) to determine the main goal.
+ - consider race, education, age, profession(?)
+ - use normal cognition and perform EDA (univariate and bivariate) use diabetes and age
+ 
+## Data Wrangling
+
+```{r Checking Data}
+head(mri)
+dim(mri)
+summary(head(mri))
+nrow(mri)
+```
+
+```{r Selecting MRI variables}
+mriAD <- mriraw |> 
+  select(NACCID, 
+         NACCMRIA,
+         NACCBRNV,
+         LHIPPO,
+         RHIPPO,
+         HIPPOVOL,
+         LLATVENT,
+         RLATVENT,
+         LATVENT,
+         LPOSCINM,
+         RPOSCINM
+)
+
+mriuds <- mriAD |>
+  right_join(uds, by = "NACCID")
+
+cleanmriuds <- mriuds |>
+  filter(NACCBRNV < 8888.888,
+         LHIPPO < 88.8888,
+         RHIPPO < 88.8888,
+         HIPPOVOL < 88.8888,
+         LPOSCINM < 8.8888,
+         RPOSCINM < 8.8888)
+        
+  
+```
+
+### Training and Test Set
+
+```{r Training and Test Set}
+set.seed(777)
+cleanmriuds_split <- initial_split(cleanmriuds, prop = 0.8)
+cleanmriuds_train <- training(cleanmriuds_split)
+cleanmriuds_test <- testing(cleanmriuds_split)
+```
+
+
+
+## Exploratory Data Analysis (for MRI)
+
+```{r eda of HIPPOVOL}
+hist(mri$HIPPOVOL)
+mri |> 
+  summarize(
+    num_total = n(),
+    num_missing = sum(is.na(HIPPOVOL)),
+    min = min(HIPPOVOL, na.rm = TRUE),
+    Q1 = quantile(HIPPOVOL, 0.25, na.rm = TRUE),
+    median = median(HIPPOVOL, na.rm = TRUE),
+    Q3 = quantile(HIPPOVOL, 0.75, na.rm = TRUE),
+    max = max(HIPPOVOL, na.rm = TRUE),
+    mean = mean(HIPPOVOL, na.rm = TRUE),
+    sd = sd(HIPPOVOL, na.rm = TRUE)
+  )
+
+boxplot(mri$HIPPOVOL)
+```
+
+```{r EDA of LATVENT}
+hist(mri$LATVENT)
+mri |> 
+  summarize(
+    num_total = n(),
+    num_missing = sum(is.na(LATVENT)),
+    min = min(LATVENT, na.rm = TRUE),
+    Q1 = quantile(LATVENT, 0.25, na.rm = TRUE),
+    median = median(LATVENT, na.rm = TRUE),
+    Q3 = quantile(LATVENT, 0.75, na.rm = TRUE),
+    max = max(LATVENT, na.rm = TRUE),
+    mean = mean(LATVENT, na.rm = TRUE),
+    sd = sd(LATVENT, na.rm = TRUE)
+  )
+
+boxplot(mri$LATVENT)
+```
+
+```{r EDA of NACCBRNV}
+hist(mri$NACCBRNV)
+mri |> 
+  summarize(
+    num_total = n(),
+    num_missing = sum(is.na(NACCBRNV)),
+    min = min(NACCBRNV, na.rm = TRUE),
+    Q1 = quantile(NACCBRNV, 0.25, na.rm = TRUE),
+    median = median(NACCBRNV, na.rm = TRUE),
+    Q3 = quantile(NACCBRNV, 0.75, na.rm = TRUE),
+    max = max(NACCBRNV, na.rm = TRUE),
+    mean = mean(NACCBRNV, na.rm = TRUE),
+    sd = sd(NACCBRNV, na.rm = TRUE)
+  )
+```
+
+```{r EDA on LPOSCINM}
+hist(mri$LPOSCINM)
+```
+
+```{r EDA of RPOSCINM}
+hist(mri$RPOSCINM)
+```
+
+```{r EDA for LPOSCINM , RPOSCINM}
+ggplot(data = mri, 
+       mapping = aes(
+         x = LPOSCINM,
+         y = RPOSCINM
+         )
+       ) +
+  geom_point() +
+  labs(x = "Left posterior cingulate mean cortical thickness
+(mm)", y = "Right posterior cingulate mean cortical thickness (mm)",
+title = "Relationship between left and right post cingulate mean cortical thickness")
+
+# boxplot(mri$LPOSCINM, mri$RPOSCINM, xlab = mri$
+#       , ylab = "Thickness (mm)")
+
+ggplot(data = cleanmriuds,
+       mapping = aes(
+         x = LPOSCINM
+       ))
+
+mri |>
+  summarize(
+    num_total = n(),
+    num_missing = sum(is.na(LPOSCINM)),
+    min = min(LPOSCINM, na.rm = TRUE),
+    Q1 = quantile(LPOSCINM, 0.25, na.rm = TRUE),
+    median = median(LPOSCINM, na.rm = TRUE),
+    Q3 = quantile(LPOSCINM, 0.75, na.rm = TRUE),
+    max = max(LPOSCINM, na.rm = TRUE),
+    mean = mean(LPOSCINM, na.rm = TRUE),
+    sd = sd(LPOSCINM, na.rm = TRUE)
+  )
+
+mri |>
+  summarize(
+    num_total = n(),
+    num_missing = sum(is.na(RPOSCINM)),
+    min = min(RPOSCINM, na.rm = TRUE),
+    Q1 = quantile(RPOSCINM, 0.25, na.rm = TRUE),
+    median = median(RPOSCINM, na.rm = TRUE),
+    Q3 = quantile(RPOSCINM, 0.75, na.rm = TRUE),
+    max = max(RPOSCINM, na.rm = TRUE),
+    mean = mean(RPOSCINM, na.rm = TRUE),
+    sd = sd(RPOSCINM, na.rm = TRUE)
+  )
+
+cor(mri$LPOSCINM, mri$RPOSCINM)
+```
+
+### Explanation for LPOSCINM and RPOSCINM:
+
+Here we try to look at the relationship between the left and right posterior cingulate mean cortical thickness and found that there is a strongly positive correlation between these two variables by 0.8278594. This means that the thickness of both sides are closely similar with each other, but we need to include or combine these variables into the uds dataset which contains the variable that determines if the patient is diagnosed with HC, MCI, or AD. 
+
+```{r EDA with NACCUDSD and LPOSCINM}
+ggplot(data = cleanmriuds,
+       mapping = aes(x = as.factor(NACCUDSD), y = LPOSCINM, color = as.factor(NACCUDSD))
+) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplots of LPOSCINM by Cognitive Status",
+    subtitle = "LPOSCINM = Left Posterior Cingulate Mean Cortical Thickness",
+    x = "Cognitive Status",
+    y = "Thickness (mm)",
+    color = "Cognitive Status",
+    labels = c("1: Normal cognition", "2: Impaired-not-MCI", "3: MCI","4: Dementia")
+  ) + 
+  scale_color_manual(
+    name = "Cognitive Status",
+    values = c("blue", "deepskyblue","yellow", "red"),
+    labels = c("1: Normal cognition", "2: Impaired-not-MCI", "3: MCI","4: Dementia")
+#1 = Normal cognition 
+#2 = Impaired-not-MCI 
+#3 = MCI 
+#4 = Dementia
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+```{r EDA with NACCUDSD and RPOSCINM}
+ggplot(data = cleanmriuds,
+       mapping = aes(x = as.factor(NACCUDSD), y = RPOSCINM, color = as.factor(NACCUDSD))
+) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplots of RPOSCINM by Cognitive Status",
+    subtitle = "RPOSCINM = Right Posterior Cingulate Mean Cortical Thickness",
+    x = "Cognitive Status",
+    y = "Thickness (mm)",
+    color = "Cognitive Status",
+    labels = c("1: Normal cognition", "2: Impaired-not-MCI", "3: MCI","4: Dementia")
+  ) + 
+  scale_color_manual(
+    name = "Cognitive Status",
+    values = c("blue", "deepskyblue","yellow", "red"),
+    labels = c("1: Normal cognition", "2: Impaired-not-MCI", "3: MCI","4: Dementia")
+#1 = Normal cognition 
+#2 = Impaired-not-MCI 
+#3 = MCI 
+#4 = Dementia
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+## ANOVA
+
+### NACCUDSD
+
+ANOVA statistical method allows to evaluate the simultaneous effect of a categorical variable (NACCUDSD) on a quantitative continuous variable (LPOSCINM/RPOSCINM).
+
+```{r ANOVA with NACCUDSD and LPOSCINM}
+cleanmriuds$NACCUDSD <- as.factor(cleanmriuds$NACCUDSD)
+
+anova_UDSDLPOS <- aov(LPOSCINM ~ NACCUDSD, data = cleanmriuds)
+summary(anova_UDSDLPOS)
+```
+
+```{r ANOVA with NACCUDSD and RPOSCINM}
+
+anova_UDSDRPOS <- aov(RPOSCINM ~ NACCUDSD, data = cleanmriuds)
+summary(anova_UDSDRPOS)
+```
+
+```{r ANOVA with NACCUDSD and LHIPPO}
+
+anova_UDSDLHIP <- aov(LHIPPO ~ NACCUDSD, data = cleanmriuds)
+summary(anova_UDSDLHIP)
+```
+
+```{r ANOVA with NACCUDSD and RHIPPO}
+
+anova_UDSDRHIP <- aov(RHIPPO ~ NACCUDSD, data = cleanmriuds)
+summary(anova_UDSDRHIP)
+```
+
+### ANOVA Results
+F-value: 
+NACCUDSD vs LPOSCINM - 133
+NACCUDSD vs RPOSCINM - 115.5
+NACCUDSD vs LHIPPO - 260.3
+NACCUDSD vs RHIPPO - 224.5
