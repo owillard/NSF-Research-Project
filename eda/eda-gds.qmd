@@ -1,0 +1,300 @@
+---
+title: "eda-gds"
+format: html
+---
+
+## EDA on GDS survey questions (15 questions)
+Geriatric Depression Scale is a questionnaire that screens for depression. Higher scores mean more severe depression.
+
+## load data
+```{r}
+csf <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_cleaned/csf.csv")
+csf_raw <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_raw/investigator_fcsf_nacc57.csv")
+
+mri <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_cleaned/mri.csv")
+mri_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/mri_feature_dictionary_cleaned.csv")
+mri_raw <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_raw/investigator_mri_nacc57.csv")
+mri_raw_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/mri-dictionary.csv")
+
+uds <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_cleaned/uds.csv")
+uds_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/uds_feature_dictionary_cleaned.csv")
+uds_raw <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_raw/investigator_uds_baseline.csv")
+uds_raw_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/uds3-rdd.csv")
+
+library(tidyverse)
+require(ggplot2)
+library(cowplot)
+
+df_list <- list(mri, uds, csf)
+merged_data <- df_list %>% reduce(full_join, by="NACCID")
+```
+
+
+```{r}
+ggplot(merged_data, aes(x = factor(NACCUDSD))) + 
+  geom_bar() + 
+  scale_x_discrete(name = "cognitive status", 
+                  labels = c("normal", "impaired", "MCI", "AD"))
+
+# The number of patients diagnosed with each cognitive statuses are different.
+# Therefore, we will look at proportions of patient responses rather than counts.
+```
+
+```{r}
+# SATIS: Are you basically satisfied with your life?
+# 0 = yes, 1 = no
+
+p1 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(SATIS))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Are you basically \nsatisfied with your life?",
+                      labels = c("yes", "no", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# DROPACT: Have you dropped many of your activities and interests?
+# 0 = no, 1 = yes
+
+p2 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(DROPACT))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Have you dropped many \nof your activities or interests?",
+                      labels = c("no", "yes", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# EMPTY: Do you feel that your life is empty?
+# 0 = no, 1 = yes
+
+p3 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(EMPTY))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Do you feel that \nyour life is empty?",
+                      labels = c("no", "yes", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# BORED: Do you often get bored?
+# 0 = no, 1 = yes
+
+p4 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(BORED))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Do you often \nget bored?",
+                      labels = c("no", "yes", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# SPIRITS: Are you in good spirits most of the time?
+# 0 = yes, 1 = no
+
+p5 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(SPIRITS))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Are you often in good \nspirits most of the time?",
+                      labels = c("yes", "no", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# AFRAID: Are you afraid that something bad is going to happen to you?
+# 0 = no, 1 = yes
+
+p6 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(AFRAID))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Are you afraid that something \nbad is going to happen to you?",
+                      labels = c("no", "yes", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# HAPPY: Do you feel happy most of the time?
+# 0 = yes, 1 = no
+
+p7 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(HAPPY))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Do you feel happy \nmost of the time?",
+                      labels = c("yes", "no", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# HELPLESS: Do you often feel helpless?
+# 0 = no, 1 = yes
+
+p8 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(HELPLESS))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Do you often \nfeel helpless?",
+                      labels = c("no", "yes", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# STAYHOME: Do you prefer to stay at home, rather than going out and doing new things?
+# 0 = no, 1 = yes
+
+p9 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(STAYHOME))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Do you prefer to stay at home, rather \nthan going out and doing new things?",
+                      labels = c("no", "yes", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# MEMPROB: Do you feel you have more problems with memory than most?
+# 0 = no, 1 = yes
+
+p10 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(MEMPROB))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Do you feel you have \nmore problems with \nmemory than most?",
+                      labels = c("no", "yes", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# WONDRFUL: Do you think it is wonderful to be alive now?
+# 0 = yes, 1 = no
+
+p11 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(WONDRFUL))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Do you think it is wonderful\n to be alive now?",
+                      labels = c("yes", "no", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# WRTHLESS: Do you feel pretty worthless the way you  are now?
+# 0 = no, 1 = yes
+
+p12 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(WRTHLESS))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Do you feel pretty worthless \nthe way you  are now?",
+                      labels = c("no", "yes", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# ENERGY: Do you feel full of energy?
+# 0 = yes, 1 = no
+
+p13 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(ENERGY))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Do you feel full \nof energy?",
+                      labels = c("yes", "no", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# HOPELESS: Do you feel that your situation is hopeless?
+# 0 = no, 1 = yes
+
+p14 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(HOPELESS))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Do you feel that your \nsituation is hopeless?",
+                      labels = c("no", "yes", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+# BETTER: Do you think that most people are better off than you are?
+# 0 = no, 1 = yes
+
+p15 <- ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(BETTER))) + 
+  geom_bar(position = "fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("proportion") + 
+  scale_fill_discrete(name = "Do you think that most people \nare better off than you are?",
+                      labels = c("no", "yes", "NA")) + 
+  theme(legend.title = element_text(size=5),
+        legend.text = element_text(size=5))
+```
+
+```{r}
+plot_grid(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15,
+          label_size = 10, ncol=3, nrow=5)
+```
+
+```{r}
+# NACCGDS: Total GDS Score
+# 0 - 15, 88 = Could not be calculated, -4 = Not available
+# Geriatric Depression Scale (GDS): higher scores mean more depression
+# Scores of 0-4 are considered normal
+# 5-8 indicate mild depression
+# 9-11 indicate moderate depression
+# and 12-15 indicate severe depression.
+
+ggplot(merged_data, aes(x = factor(NACCUDSD), fill = factor(NACCGDS))) + 
+  geom_bar(position="fill") + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) + 
+  ylab("proportion") + 
+  scale_fill_viridis_d()
+# as cognitive status worsens, a smaller proportion of patients have lower scores.
+```
+
+```{r}
+ggplot(merged_data, aes(x = NACCGDS, fill = factor(NACCUDSD))) + 
+  geom_bar(position = "fill") + 
+  labs(x = "GDS score", y = "proportion") + 
+  scale_fill_discrete(name = "cognitive status",
+                      labels = c("normal cognition", "impaired-not-MCI",
+                                 "MCI", "AD"))
+
+# As GDS scores increase (which indicate more depression), the proportion of patients with Alzheimer's Disease increases.
+```
