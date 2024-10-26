@@ -1,0 +1,128 @@
+---
+title: "test-gds"
+format: html
+---
+
+## load data
+```{r}
+csf <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_cleaned/csf.csv")
+csf_raw <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_raw/investigator_fcsf_nacc57.csv")
+
+mri <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_cleaned/mri.csv")
+mri_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/mri_feature_dictionary_cleaned.csv")
+mri_raw <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_raw/investigator_mri_nacc57.csv")
+mri_raw_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/mri-dictionary.csv")
+
+uds <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_cleaned/uds.csv")
+uds_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/uds_feature_dictionary_cleaned.csv")
+uds_raw <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_raw/investigator_uds_baseline.csv")
+uds_raw_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/uds3-rdd.csv")
+
+library(tidyverse)
+require(ggplot2)
+library(cowplot)
+
+df_list <- list(mri, uds, csf)
+merged_data <- df_list %>% reduce(full_join, by="NACCID")
+```
+
+## Test
+Is GDS score associated with the patient's cognitive status?
+response variable: cognitive status (normal, impaired, MCI, AD)
+
+null hypothesis: GDS score and cognitive status are independent. 
+alternative hypothesis: GDS score and cognitive status are dependent.
+
+If p-value<0.05, reject the null hypothesis and conclude the alternative hypothesis.
+```{r}
+ggplot(merged_data, aes(x = NACCGDS, fill = factor(NACCUDSD))) + 
+  geom_bar(position = "fill") + 
+  labs(x = "GDS score", y = "proportion") + 
+  scale_fill_discrete(name = "cognitive status",
+                      labels = c("normal cognition", "impaired-not-MCI",
+                                 "MCI", "AD"))
+
+# As GDS scores increase (which indicate more depression), the proportion of patients with Alzheimer's Disease increases.
+```
+
+```{r}
+# Chi-square test with GDS score and cognitive status
+GDS_cog_status <- table(merged_data$NACCGDS, merged_data$NACCUDSD)
+chisq.test(GDS_cog_status)
+
+# X-squared = 3929.6
+# p-value = 2.2e-16 < 0.05
+# GDS score and cognitive status are dependent.
+```
+
+```{r}
+# Chi-square test with SATIS and cognitive status
+SATIS_cog_status <- table(merged_data$SATIS, merged_data$NACCUDSD)
+chisq.test(SATIS_cog_status)
+
+# Chi-square test with DROPACT and cognitive status
+DROPACT_cog_status <- table(merged_data$DROPACT, merged_data$NACCUDSD)
+chisq.test(DROPACT_cog_status)
+
+# Chi-square test with EMPTY and cognitive status
+EMPTY_cog_status <- table(merged_data$EMPTY, merged_data$NACCUDSD)
+chisq.test(EMPTY_cog_status)
+
+# Chi-square test with BORED and cognitive status
+BORED_cog_status <- table(merged_data$BORED, merged_data$NACCUDSD)
+chisq.test(BORED_cog_status)
+
+# Chi-square test with SPIRITS and cognitive status
+SPIRITS_cog_status <- table(merged_data$SPIRITS, merged_data$NACCUDSD)
+chisq.test(SPIRITS_cog_status)
+
+# Chi-square test with AFRAID and cognitive status
+AFRAID_cog_status <- table(merged_data$AFRAID, merged_data$NACCUDSD)
+chisq.test(AFRAID_cog_status)
+
+# Chi-square test with HAPPY and cognitive status
+HAPPY_cog_status <- table(merged_data$HAPPY, merged_data$NACCUDSD)
+chisq.test(HAPPY_cog_status)
+
+# Chi-square test with HELPLESS and cognitive status
+HELPLESS_cog_status <- table(merged_data$HELPLESS, merged_data$NACCUDSD)
+chisq.test(HELPLESS_cog_status)
+
+# Chi-square test with STAYHOME and cognitive status
+STAYHOME_cog_status <- table(merged_data$STAYHOME, merged_data$NACCUDSD)
+chisq.test(STAYHOME_cog_status)
+
+# Chi-square test with MEMPROB and cognitive status
+MEMPROB_cog_status <- table(merged_data$MEMPROB, merged_data$NACCUDSD)
+chisq.test(MEMPROB_cog_status)
+
+# Chi-square test with WONDRFUL and cognitive status
+WONDRFUL_cog_status <- table(merged_data$WONDRFUL, merged_data$NACCUDSD)
+chisq.test(WONDRFUL_cog_status)
+
+# Chi-square test with WRTHLESS and cognitive status
+WRTHLESS_cog_status <- table(merged_data$WRTHLESS, merged_data$NACCUDSD)
+chisq.test(WRTHLESS_cog_status)
+
+# Chi-square test with ENERGY and cognitive status
+ENERGY_cog_status <- table(merged_data$ENERGY, merged_data$NACCUDSD)
+chisq.test(ENERGY_cog_status)
+
+# Chi-square test with HOPELESS and cognitive status
+HOPELESS_cog_status <- table(merged_data$HOPELESS, merged_data$NACCUDSD)
+chisq.test(HOPELESS_cog_status)
+
+# Chi-square test with BETTER and cognitive status
+BETTER_cog_status <- table(merged_data$BETTER, merged_data$NACCUDSD)
+chisq.test(BETTER_cog_status)
+
+
+# variables with most significant relationships to cog status:
+# variable(X-squared value)
+# MEMPROB(5156.8)
+# DROPACT(1844.9)
+# WRTHLESS(1199)
+# BETTER(1181.7)
+# BORED(1147.2)
+# HELPLESS(1082.9)
+```
