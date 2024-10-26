@@ -1,0 +1,448 @@
+---
+title: "modeling-roc-curves"
+format: html
+---
+
+## load packages
+```{r}
+library(tidyverse) 
+library(rsample)
+library(broom)
+library(yardstick)
+library(janitor)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidymodels)
+library(ranger)
+library(probably)
+library(vip)
+library(rpart.plot)
+library(e1071)
+library(pROC)
+library(cowplot)
+```
+
+## data
+```{r}
+uds <- read_csv("original_data/data_cleaned/uds.csv")
+
+# select predictors
+predictors_df <- uds %>% 
+  select(SEX,
+          EDUC,
+          NACCAGE,
+          VEG,
+          ANIMALS,
+          TRAILA,
+          TRAILB,
+          CRAFTDRE,
+          MINTTOTS,
+          MEMPROB,
+          DROPACT,
+          WRTHLESS,
+          BETTER,
+          BORED,
+          HELPLESS,
+          TAXES,
+          BILLS,
+          REMDATES,
+          TRAVEL,
+          NACCUDSD,
+          MEALPREP,
+          GAMES) %>%
+  mutate(across(c(SEX,
+                  MEMPROB,
+                  DROPACT,
+                  WRTHLESS,
+                  BETTER,
+                  BORED,
+                  HELPLESS,
+                  TAXES,
+                  BILLS,
+                  REMDATES,
+                  TRAVEL,
+                  MEALPREP,
+                  GAMES), as.factor))
+```
+
+```{r}
+#create 2 seperate dataset with just MCI vs AD and HC vs Not HC  
+#(0 and 1s are for the logistic regression Model)
+HC_notHC_set <- predictors_df |>
+  filter(NACCUDSD == "1" | NACCUDSD == "3" | NACCUDSD == "4") |>
+  mutate(cog_stat = case_when(NACCUDSD == 1 ~ "0",          #HC = 0
+                              NACCUDSD == 3 ~ "1",      #Not HC = 1
+                              NACCUDSD == 4 ~ "1")) |> select(-NACCUDSD) |> na.omit() 
+
+MCI_AD_set <- predictors_df |>
+  filter(NACCUDSD == "3" | NACCUDSD == "4") |>
+  mutate(cog_stat = case_when(NACCUDSD == 3 ~ "0",         #MCI = 0, AD = 1
+                              NACCUDSD == 4 ~ "1")) |> select(-NACCUDSD) |> na.omit() 
+
+HC_notHC_set <- HC_notHC_set |>
+   mutate(
+    cog_stat = cog_stat |> 
+      as.factor() |>
+      relevel(ref = "0")
+  )
+MCI_AD_set <- MCI_AD_set |>
+   mutate(
+    cog_stat = cog_stat |> 
+      as.factor() |>
+      relevel(ref = "0")
+   )
+```
+
+## logistic regression
+```{r}
+# splitting training and holdout for both data sets
+set.seed(236967)
+HC_notHC_set_split <- initial_split(
+  HC_notHC_set,
+  prop = 0.8 
+)
+
+HC_notHC_set_training <- training(HC_notHC_set_split)
+HC_notHC_set_holdout <- testing(HC_notHC_set_split)
+
+set.seed(236967)
+MCI_AD_set_split <- initial_split(
+  MCI_AD_set,
+  prop = 0.8 
+)
+
+MCI_AD_set_training <- training(MCI_AD_set_split)
+MCI_AD_set_holdout <- testing(MCI_AD_set_split)
+
+########### model
+HC_notHC_logistic_1 <- glm(
+  cog_stat ~ SEX + EDUC + NACCAGE + VEG + ANIMALS + TRAILA + TRAILB + CRAFTDRE + MINTTOTS + MEMPROB + DROPACT + WRTHLESS + BETTER + BORED + HELPLESS + TAXES + BILLS + REMDATES + MEALPREP + GAMES , 
+  data = HC_notHC_set_training,
+  family = "binomial")
+#sometimes do this at the very end
+HC_notHC_logistic_1 |>
+  tidy()
+
+MCI_AD_logistic_1 <- glm(
+  cog_stat ~ SEX + EDUC + NACCAGE + VEG + ANIMALS + TRAILA + TRAILB + CRAFTDRE + MINTTOTS  + MEMPROB + DROPACT + WRTHLESS + BETTER + BORED + HELPLESS + TAXES + BILLS + REMDATES + MEALPREP + GAMES, 
+  data = MCI_AD_set_training,
+  family = "binomial")
+#sometimes do this at the very end
+MCI_AD_logistic_1 |>
+  tidy()
+
+########### predictions
+HC_notHC_logr1_pred <- HC_notHC_logistic_1 |>
+  augment(newdata = HC_notHC_set_holdout,
+          type.predict = "response")
+HC_notHC_logr1_predictions <- HC_notHC_logr1_pred |>
+  mutate(
+    predicted_class = if_else(
+      .fitted > 0.5, # more likely to be not HC than HC, can adjust 
+      "1", # Not HC
+      "0" # HC
+      ) |>
+      as.factor() |> # convert to factor
+      relevel(ref = "0") # define reference level
+    )
+
+MCI_AD_logr1_pred <- MCI_AD_logistic_1 |>
+  augment(newdata = MCI_AD_set_holdout,
+          type.predict = "response")
+MCI_AD_logr1_predictions <- MCI_AD_logr1_pred |>
+  mutate(
+    predicted_class = if_else(
+      .fitted > 0.5, # more likely to be AD than MCI, can adjust 
+      "1", # AD
+      "0" # MCI
+      ) |>
+      as.factor() |> # convert to factor
+      relevel(ref = "0") # define reference level
+    )
+
+########### confusion matrix
+HC_notHC_logr1_predictions |>
+  conf_mat(
+    truth = cog_stat, # row variable
+    estimate = predicted_class # column variable
+    )
+
+MCI_AD_logr1_predictions |>
+  conf_mat(
+    truth = cog_stat, # row variable
+    estimate = predicted_class # column variable
+    )
+```
+
+
+## ROC curve for logistic regression (just MCI vs. AD classification)
+```{r}
+MCI_AD_logr1_roc_curve <- MCI_AD_logr1_predictions |>
+  roc_curve(truth = cog_stat,
+            .fitted,
+            event_level = "second")
+
+MCI_AD_logr1_roc_curve |> head(4)
+
+
+# plotting ROC curve
+p1 <- autoplot(MCI_AD_logr1_roc_curve) +
+  theme(
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 10)
+  )
+
+# AUC
+auc_logistic <- MCI_AD_logr1_predictions |>
+  roc_auc(truth = cog_stat,
+            .fitted,
+            event_level = "second") |> pull(.estimate)
+auc_logistic
+```
+
+
+
+## Random Forest (just MCI vs. AD classification)
+
+```{r}
+factor_vars <- c("TAXES", "BILLS", "REMDATES", "TRAVEL", "MEMPROB", 
+                 "DROPACT", "WRTHLESS", "BETTER", "BORED", "HELPLESS", "SEX",
+                 "MEALPREP", "GAMES")
+```
+
+```{r}
+uds_mci_ad_only <- uds %>%
+  select(SEX, EDUC, NACCAGE, VEG, ANIMALS, TRAILA, TRAILB, CRAFTDRE, MINTTOTS, DIGBACCT, MEMPROB,
+    DROPACT, WRTHLESS, BETTER, BORED, HELPLESS, TAXES, BILLS, REMDATES, TRAVEL, MEALPREP, GAMES, NACCUDSD) %>%
+  filter(NACCUDSD == 3 | NACCUDSD == 4)
+  
+cog_status_mci_ad_only <- factor(uds_mci_ad_only$NACCUDSD,
+       levels = c(3, 4),
+       labels = c("MCI", "AD"))
+
+uds_mci_ad_only <- uds_mci_ad_only %>%
+  # Factor multiple variables using across
+  mutate(across(all_of(factor_vars), factor)) %>%
+  # Factor the cog_status variable separately
+  mutate(cog_status = factor(cog_status_mci_ad_only)) %>%
+  select(-NACCUDSD) %>%
+  na.omit()
+```
+
+```{r}
+
+# Training and Test Set
+set.seed(777)
+udscog3_split <- initial_split(uds_mci_ad_only, prop = 0.8)
+udscog3_train <- training(udscog3_split)
+udscog3_test <- testing(udscog3_split)
+```
+
+```{r}
+
+########################
+# Classification Trees
+########################
+
+# tree-tidy model
+# treeR_model <- decision_tree(mode = "regression", engine = "rpart",
+#                            cost_complexity = tune())
+# let's just tune the cost-complexity parameter
+# can be used for CDRSUM AND MMSE below this chunk
+
+
+# treeC-tidy model
+#treeC_model <- set_mode(treeR_model, "classification")
+
+# Equivalent to:
+treeC_model3 <- decision_tree(mode = "classification", engine = "rpart", cost_complexity = tune())
+# because we are still using rpart and tuning the cost-complexity parameter
+
+
+# treeC-tidy recipe AD}
+treeC_recipe_AD3 <- recipe(cog_status ~ . ,data = udscog3_train)
+
+treeC_wflow_AD3 <- workflow() |>
+  add_model(treeC_model3) |>
+  add_recipe(treeC_recipe_AD3)
+
+
+# tune Cmodel kfold 1 AD
+set.seed(777)
+AD_kfold3 <- vfold_cv(udscog3_train, v = 5, repeats = 3) 
+
+# changed mn_log_loss to auc_roc
+treeC_tune3 <- tune_grid(treeC_model3, 
+                         treeC_recipe_AD3, 
+                         resamples = AD_kfold3, 
+                         metrics = metric_set(roc_auc),
+                         grid = grid_regular(cost_complexity(range = c(-2, 0)), levels = 10))
+
+autoplot(treeC_tune3)
+
+# changed mn_log_loss to roc_auc
+treeC_best3 <- select_by_one_std_err(
+  treeC_tune3,
+  metric = "roc_auc",
+  desc(cost_complexity)
+)
+treeC_best3
+
+
+# fit treeC an actual tiny tree
+treeC_wflow3_final <- finalize_workflow(treeC_wflow_AD3, parameters = treeC_best3) 
+
+treeC_fit3 <- fit(treeC_wflow3_final, data = udscog3_train)
+
+rpart.plot(extract_fit_engine(treeC_fit3), main = "Decision Tree Plot", type = 1, extra = 100, under = TRUE, cex = 0.6,
+           roundint =FALSE)
+
+
+# extract_fit_engine(treeC_fit2) %>%
+#   plot()
+```
+
+```{r}
+### Bagging and Random Forests for Classification
+# rfC-tidy model
+rfC_model3 <- rand_forest(mode = "classification", engine = "ranger") |>
+  set_args(seed = 777,
+           importance = "permutation",
+           mtry = tune()
+  )
+
+rfC_recipe_AD3 <- recipe(
+  cog_status ~ .,
+  data = udscog3_train
+)
+
+
+rfC_wflow_AD3 <- workflow() |>
+  add_model(rfC_model3) |>
+  add_recipe(rfC_recipe_AD3)
+
+
+# tune model kfold rfC}
+# I'm sure there's a better way, but this works
+n_predictorsC3 <- sum(rfC_recipe_AD3$var_info$role == "predictor")
+manual_gridC3 <- expand.grid(mtry = seq(1, n_predictorsC3))
+
+# changed mn_log_loss to auc_roc
+rfC_tune3 <- tune_grid(rfC_model3, 
+                       rfC_recipe_AD3, 
+                       resamples = AD_kfold3, 
+                       metrics = metric_set(roc_auc, accuracy),
+                       grid = manual_gridC3)
+
+# took 20 minutes to run
+autoplot(rfC_tune3)
+
+
+# select best rfC
+# Ted used mn_log_loss, changed to roc_auc
+# mn_log_loss if accurate probability extimates are crucial
+# roc is model's ability to distinuguish between classes is the focus
+rfC_best <- select_best(
+  rfC_tune3,
+  metric = "roc_auc"
+)
+
+# fit rfC-tidy model
+rfC_wflow_final3 <- finalize_workflow(rfC_wflow_AD3, parameters = rfC_best) 
+rfC_fit3 <- fit(rfC_wflow_final3, data = udscog3_train)
+rfC_fit3
+
+
+# rfC OOB Brier Score and vip
+rfC_engine3 <- rfC_fit3 |> extract_fit_engine()
+rfC_engine3
+#extract_fit_engine(treeC_fit2) |>
+#plot(
+#ylim = c(-0.2, 1.2))
+#extract_fit_engine(treeC_fit2) |>
+#text(cex = 0.5)
+
+rfC_engine3 |> pluck("prediction.error")
+
+vip(rfC_engine3, main = "Variable importance plot" , scale = TRUE)
+
+
+# log-loss multiple cross entropy
+rfC_multi_AD3 <- broom::augment(rfC_fit3, new_data = udscog3_test)
+```
+
+
+```{r}
+rf_roc_curve <- rfC_multi_AD3 %>%
+  roc_curve(truth = cog_status, .pred_MCI)
+auc_rf <- roc_auc(rfC_multi_AD3,
+        truth = cog_status,
+        .pred_MCI) %>% pull(.estimate)
+```
+
+
+## SVM (just MCI vs. AD classification)
+```{r}
+# training and test set for MCI_AD_set
+set.seed(777)
+MCI_AD_split <- initial_split(MCI_AD_set, prop = 0.8)
+MCI_AD_train <- training(MCI_AD_split)
+MCI_AD_test <- testing(MCI_AD_split)
+
+svmfit2 <- svm(factor(cog_stat) ~ ., data = MCI_AD_train, kernel = "linear", cost = 10, cross = 10)
+summary(svmfit2)
+```
+
+```{r}
+preds2 <- predict(svmfit2, MCI_AD_test)
+
+# Compute ROC curve
+svm_roc_curve <- roc(MCI_AD_test$cog_stat, as.numeric(preds2))
+
+# Compute AUC
+auc_svm <- auc(svm_roc_curve)
+auc_svm
+```
+
+## plotting ROC curves together
+```{r}
+# Plot ROC curves with AUC values
+p1 <- ggplot(MCI_AD_logr1_roc_curve, aes(x = 1 - specificity, y = sensitivity)) +
+  geom_line(color = "blue") +
+  geom_abline(linetype = "dashed", color = "grey") +
+  labs(title = paste("Logistic Regression\nAUC =", round(auc_logistic, 2)),
+       x = "False Positive Rate (FPR)",
+       y = "True Positive Rate (TPR)") +
+  theme_minimal()
+
+```
+
+```{r}
+p2 <- ggplot(rf_roc_curve, aes(x = 1 - specificity, y = sensitivity)) +
+  geom_line(color = "red") +
+  geom_abline(linetype = "dashed", color = "grey") +
+  labs(title = paste("Random Forest\nAUC =", round(auc_rf, 2)),
+       x = "False Positive Rate (FPR)",
+       y = "True Positive Rate (TPR)") +
+  theme_minimal()
+```
+
+
+```{r}
+p3 <- ggplot(data.frame(
+  FPR = 1 - svm_roc_curve$specificities,
+  TPR = svm_roc_curve$sensitivities
+), aes(x = FPR, y = TPR)) +
+  geom_line(color = "green") +
+  geom_abline(linetype = "dashed", color = "grey") +
+  labs(title = paste("SVM\nAUC =", round(auc_svm, 2)),
+       x = "False Positive Rate (FPR)",
+       y = "True Positive Rate (TPR)") +
+  theme_minimal()
+```
+
+```{r}
+# Combine plots
+plot_grid(p1, p2, p3, ncol = 3)
+```
