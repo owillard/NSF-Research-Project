@@ -1,0 +1,92 @@
+---
+title: "Test - NPT, Part 2"
+author: "Kent T"
+format: html
+---
+
+```{r}
+#| label: load packages
+library(tidyverse) 
+library(rsample)
+library(broom)
+library(yardstick)
+library(janitor)
+library(dplyr)
+```
+
+```{r}
+#| label: import data 
+library(readr)
+csf <- read_csv(here::here("Data", "csf.csv")) #biomarkers data
+mri <- read_csv(here::here("Data", "mri.csv")) #mri scan data
+uds <- read_csv(here::here("Data", "uds.csv")) #questionare data
+```
+
+```{r}
+#| label: data wrangling
+
+uds_cleaning <- uds |>
+   mutate(
+     
+#Variable of Interest
+    NACCUDSD = NACCUDSD |> 
+      as.factor() |>
+      relevel(ref = "1")
+   )
+#NA Filtering -> all tables and graph have NA removed 
+uds_cleaning <- uds_cleaning |>
+  filter(!is.na(MINTTOTS))|>
+  filter(!is.na(CRAFTDRE))|>
+  filter(!is.na(DIGFORCT))|>
+  filter(!is.na(DIGFORSL))|>
+  filter(!is.na(DIGBACCT))|>
+  filter(!is.na(DIGBACLS))
+
+```
+
+Testing
+
+-   Is there a difference in the values between DIGFORCT + DIGFORSL + DIGBACCT + DIGBACLS
+
+```{r}
+ForwardvsBack_Points <- t.test(uds_cleaning$DIGFORCT, 
+                               uds_cleaning$DIGBACCT, paired = TRUE)
+
+ForwardsvsBack_Longest<- t.test(uds_cleaning$DIGFORSL, 
+                                uds_cleaning$DIGBACLS, paired = TRUE)
+
+#conclusion there is a difference between forward and backward scores
+```
+
+```{r}
+Forward_points_anova <- aov(DIGFORCT ~ NACCUDSD, data = uds_cleaning)
+Forward_length_anova <- aov(DIGFORSL  ~ NACCUDSD, data = uds_cleaning)
+Back_points_anova <- aov(DIGBACCT ~ NACCUDSD, data = uds_cleaning)
+Back_length_anova <- aov(DIGBACLS ~ NACCUDSD, data = uds_cleaning)
+summary(Forward_points_anova)
+summary(Forward_length_anova)
+summary(Back_points_anova)
+summary(Back_length_anova)
+```
+
+Number Span Test is Significant (Back Points seems to have highest f value)
+
+```{r}
+Craft_Delayed_aov <- aov(CRAFTDRE ~ NACCUDSD, data = uds_cleaning)
+summary(Craft_Delayed_aov)
+```
+
+Craft Story is Significant
+
+```{r}
+MINTTOTS_aov <- aov(MINTTOTS ~ NACCUDSD, data = uds_cleaning)
+summary(MINTTOTS_aov)
+```
+
+List of Interested NPT in order
+
+Craft Story (3176)
+
+MINTTOTS (1006)
+
+DIGBACCT (968)
