@@ -1,0 +1,251 @@
+---
+title: "eda-presentation-poster"
+format: html
+---
+
+## Data Wrangling
+
+```{r}
+#| label: load packages
+library(tidyverse) 
+library(rsample)
+library(broom)
+library(yardstick)
+library(janitor)
+```
+
+```{r}
+#| label: import data 
+library(readr)
+uds <- read_csv(here::here("data/NACC_data/original_data/data_cleaned", "uds.csv")) #questionare data
+#"data/NACC_data/original_data/data_cleaned/usd.csv"
+```
+
+```{r}
+#| label: data wrangle
+
+# select predictors
+cleaned_uds <- uds |> select(
+  NACCID,
+  SEX,
+  EDUC,
+  NACCAGE,
+  VEG,
+  ANIMALS,
+  TRAILA,
+  TRAILB,
+  CRAFTDRE,
+  MINTTOTS,
+# DIGBACCT,   #bad performing
+  MEMPROB,
+  DROPACT,
+  WRTHLESS,
+  BETTER,
+  BORED,
+  HELPLESS,
+  TAXES,
+  BILLS,
+  REMDATES,
+  TRAVEL,
+  MEALPREP,
+  GAMES,
+  NACCUDSD
+)
+
+cleaned_uds <- cleaned_uds |>
+   mutate(
+   SEX = SEX |> 
+      as.factor() |>
+      relevel(ref = "1"), #Male
+   MEMPROB = MEMPROB |> 
+      as.factor() |>
+      relevel(ref = "0"), #No 
+   DROPACT = DROPACT |> 
+      as.factor() |>
+      relevel(ref = "0"), #No
+   WRTHLESS = WRTHLESS |> 
+      as.factor() |>
+      relevel(ref = "0"), #No
+   BETTER = BETTER |> 
+      as.factor() |>
+      relevel(ref = "0"), #No 
+   BORED = BORED |> 
+      as.factor() |>
+      relevel(ref = "0"), #No
+   HELPLESS = HELPLESS |> 
+      as.factor() |>
+      relevel(ref = "0"), #No
+   TAXES = TAXES |> 
+      as.factor() |>
+      relevel(ref = "0"), #Normal
+   BILLS = BILLS |> 
+      as.factor() |>
+      relevel(ref = "0"), #Normal
+   REMDATES = REMDATES |> 
+      as.factor() |>
+      relevel(ref = "0"), #Normal
+   MEALPREP = MEALPREP |> 
+      as.factor() |>
+      relevel(ref = "0"), #Normal
+   GAMES = GAMES |> 
+      as.factor() |>
+      relevel(ref = "0")  #Normal
+   )
+  
+#create 2 seperate dataset with just MCI vs AD and HC vs Not HC  
+#(0 and 1s are for the logistic regression Model)
+cleaned_uds <- cleaned_uds |>
+  filter(NACCUDSD == "1" | NACCUDSD == "3" | NACCUDSD == "4") |>
+  mutate(cog_stat = case_when(NACCUDSD == 1 ~ "HC",         
+                              NACCUDSD == 3 ~ "MCI",     
+                              NACCUDSD == 4 ~ "AD")) |>
+  mutate(TAXES = case_when(TAXES == 0 ~ "Normal",
+                           TAXES == 1 ~ "Slight Difficulty",
+                           TAXES == 2 ~ "Requires Assistance",
+                           TAXES == 3 ~ "Dependent" )) |>
+  mutate(BILLS = case_when(BILLS == 0 ~ "Normal",
+                           BILLS == 1 ~ "Slight Difficulty",
+                           BILLS == 2 ~ "Requires Assistance",
+                           BILLS == 3 ~ "Dependent" )) |>
+  mutate(REMDATES = case_when(REMDATES == 0 ~ "Normal",
+                           REMDATES == 1 ~ "Slight Difficulty",
+                           REMDATES == 2 ~ "Requires Assistance",
+                           REMDATES == 3 ~ "Dependent" )) |> na.omit() 
+
+cleaned_uds <- cleaned_uds |>
+   mutate(
+    cog_stat = cog_stat |> 
+      as.factor() |>
+      relevel(ref = "HC")
+  )
+    
+```
+
+## Quick EDA
+```{r}
+#| label: Graph of TAXES vs COG_STAT
+library(gridExtra)
+
+plot1 <- ggplot(
+  data = cleaned_uds,
+  mapping = aes(x = factor(TAXES, levels = c("Normal", "Slight Difficulty", "Requires Assistance", "Dependent")), fill = cog_stat)
+) +
+  geom_bar(position = "fill") +
+  labs(x = "Ability To Do Taxes", y = "Proportion of Patients") +
+  scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("#4B0082", "violet", "#008080"),
+    labels = c("Normal Cognition", "MCI", "Dementia")
+  ) +
+  theme(axis.text.x = element_text(angle = 15, hjust = 1))
+
+plot2 <- ggplot(
+  data = cleaned_uds,
+  mapping = aes(x = factor(BILLS, levels = c("Normal", "Slight Difficulty", "Requires Assistance", "Dependent")), fill = cog_stat)
+) +
+  geom_bar(position = "Fill") +
+  labs(x = "Ability To Do Bills",
+       y = "Proportion of Patients") +
+    scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("#4B0082", "violet", "#008080"),
+    labels = c("Normal Cognition","MCI","Dementia")
+  ) +
+  theme(axis.text.x = element_text(angle = 15, hjust = 1))
+
+plot3 <- ggplot(
+  data = cleaned_uds,
+  mapping = aes(x = factor(REMDATES, levels = c("Normal", "Slight Difficulty", "Requires Assistance", "Dependent")), fill = cog_stat)
+) +
+  geom_bar(position = "Fill") +
+  labs(x = "Ability to Remember Dates and Events",
+       y = "Proportion of Patients") +
+    scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("#4B0082", "violet", "#008080"),
+    labels = c("Normal Cognition","MCI","Dementia")
+  ) +
+  theme(axis.text.x = element_text(angle = 15, hjust = 1,size = 8))
+
+plot1
+plot2
+plot3
+
+```
+
+```{r}
+# Load required libraries
+library(ggplot2)
+library(gridExtra)
+library(grid)
+
+# Function to extract the legend
+get_legend <- function(my_plot) {
+  tmp <- ggplotGrob(my_plot)
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)
+}
+
+# Create your three plots without legends
+plot1 <- ggplot(
+  data = cleaned_uds,
+  mapping = aes(x = factor(TAXES, levels = c("Normal", "Slight Difficulty", "Requires Assistance", "Dependent")), fill = cog_stat)
+) +
+  geom_bar(position = "fill") +
+  labs(x = "Ability to Do Taxes", y = "Proportion of Patients") +
+  scale_x_discrete(breaks = c("Normal", "Slight Difficulty", "Requires Assistance", "Dependent"), labels = c("Normal", "Slight\nDifficulty", "Requires\nAssistance", "Dependent")) + 
+  scale_fill_manual(
+    name = "Cognitive\nStatus",
+    values = c("#4B0082", "violet", "#008080"),
+    labels = c("Healthy\nControl", "MCI", "AD")
+  ) +
+  theme(axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 14),  
+        axis.title.y = element_text(size = 14),  
+        legend.position = "none")  # Remove legend
+
+plot2 <- ggplot(
+  data = cleaned_uds,
+  mapping = aes(x = factor(BILLS, levels = c("Normal", "Slight Difficulty", "Requires Assistance", "Dependent")), fill = cog_stat)
+) +
+  geom_bar(position = "fill") +
+  labs(x = "Ability to Do Bills", y = "") +
+  scale_x_discrete(breaks = c("Normal", "Slight Difficulty", "Requires Assistance", "Dependent"), labels = c("Normal", "Slight\nDifficulty", "Requires\nAssistance", "Dependent")) + 
+  scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("#4B0082", "violet", "#008080"),
+    labels = c("Normal Cognition", "MCI", "Dementia")
+  ) +
+  theme(axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14),  
+        legend.position = "none")  # Remove legend
+
+plot3 <- ggplot(
+  data = cleaned_uds,
+  mapping = aes(x = factor(REMDATES, levels = c("Normal", "Slight Difficulty", "Requires Assistance", "Dependent")), fill = cog_stat)
+) +
+  geom_bar(position = "fill") +
+  labs(x = "Ability to Remember Dates", y = "") +
+  scale_x_discrete(breaks = c("Normal", "Slight Difficulty", "Requires Assistance", "Dependent"), labels = c("Normal", "Slight\nDifficulty", "Requires\nAssistance", "Dependent")) + 
+  scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("#4B0082", "violet", "#008080"),
+    labels = c("Normal Cognition", "MCI", "Dementia")
+  ) +
+  theme(axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 14),  
+        axis.title.y = element_text(size = 14),  
+        legend.position = "none")  # Remove legend
+
+# Extract the legend from one of the plots
+legend <- get_legend(plot1 + theme(legend.position = "right"))
+
+# Arrange the plots side by side with the legend below them
+grid.arrange(
+  arrangeGrob(plot1, plot2, plot3,  ncol = 3,
+              top = textGrob("FAS Variables by Cognitive Status",
+                             gp=gpar(fontsize=16))), right = legend)
+
+```
