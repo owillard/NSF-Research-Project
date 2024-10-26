@@ -1,0 +1,119 @@
+---
+title: "eda-demo-and-npt"
+format: html
+---
+
+## load data
+```{r}
+csf <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_cleaned/csf.csv")
+csf_raw <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_raw/investigator_fcsf_nacc57.csv")
+
+mri <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_cleaned/mri.csv")
+mri_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/mri_feature_dictionary_cleaned.csv")
+mri_raw <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_raw/investigator_mri_nacc57.csv")
+mri_raw_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/mri-dictionary.csv")
+
+uds <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_cleaned/uds.csv")
+uds_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/uds_feature_dictionary_cleaned.csv")
+uds_raw <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_raw/investigator_uds_baseline.csv")
+uds_raw_dic <- read_csv("C:/Users/new account/Desktop/NACC_data/original_data/data_dictionary/uds3-rdd.csv")
+
+library(tidyverse)
+require(ggplot2)
+library(cowplot)
+
+df_list <- list(mri, uds, csf)
+merged_data <- df_list %>% reduce(full_join, by="NACCID")
+
+```
+
+
+## age
+```{r}
+ggplot(merged_data, aes(x = NACCAGE, fill = factor(NACCUDSD))) + 
+  geom_density(alpha = 0.25) + 
+  xlab("age") +
+  scale_fill_discrete(name = "cognitive status", 
+                      labels = c("normal", "impaired", "MCI", "AD"))
+
+# The density of patients of different cognitive status is increasingly shifted
+# towards older age as cognitive status worsens.
+
+MCI_AD_patients <- filter(merged_data, NACCUDSD == 3 | NACCUDSD == 4)
+ggplot(MCI_AD_patients, aes(x = NACCAGE, fill = factor(NACCUDSD))) + 
+  geom_density(alpha = 0.25) + 
+  xlab("age") +
+  scale_fill_discrete(name = "cognitive status", 
+                      labels = c("MCI", "AD"))
+
+# Patient groups with MCI and AD have similar age distributions. 
+```
+
+## years of education
+```{r}
+ggplot(merged_data, aes(x = factor(NACCUDSD), y = EDUC, fill = factor(NACCUDSD))) + 
+  geom_boxplot(alpha = 0.4) + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("years of education") + 
+  scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9", "red")) + 
+  theme(legend.position = "none")
+
+# The distribution of patients with dementia show that they generally
+# have fewer years of education compared to the other cognitive status groups.
+
+MCI_AD_patients <- filter(merged_data, NACCUDSD == 3 | NACCUDSD == 4)
+ggplot(MCI_AD_patients, aes(x = EDUC, fill = factor(NACCUDSD))) + 
+  geom_boxplot(alpha = 0.4) + 
+  scale_fill_manual(name = "cognitive status", 
+                    labels = c("MCI", "AD"),
+                    values=c("#E69F00", "#56B4E9")) +
+  xlab("years of education") + 
+  coord_flip() + theme(axis.text.x=element_blank())
+
+# The distribution of patients with AD show that they generally
+# have fewer years of education compared to those with MCI.
+
+```
+
+## MMSE score
+```{r}
+ggplot(merged_data, aes(x = factor(NACCUDSD), y = NACCMMSE, fill = factor(NACCUDSD))) + 
+  geom_boxplot(alpha = 0.4) + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("total MMSE score") + 
+  scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9", "red")) + 
+  theme(legend.position = "none")
+
+# This distribution shows that as cognitive status worsens, total MMSE
+# score decreases.
+
+MCI_AD_patients <- filter(merged_data, NACCUDSD == 3 | NACCUDSD == 4)
+ggplot(MCI_AD_patients, aes(x = NACCMMSE, fill = factor(NACCUDSD))) + 
+  geom_boxplot(alpha = 0.4) + 
+  scale_fill_manual(name = "cognitive status", 
+                    labels = c("MCI", "AD"),
+                    values=c("#E69F00", "#56B4E9")) +
+  xlab("total MMSE score") + 
+  coord_flip()
+
+# Patients with MCI generally have higher MMSE scores than those with AD. 
+```
+
+## CDR sum
+```{r}
+ggplot(merged_data, aes(x = factor(NACCUDSD), y = CDRSUM, fill = factor(NACCUDSD))) + 
+  geom_boxplot(alpha = 0.4) + 
+  scale_x_discrete(name = "cognitive status", 
+                   labels = c("normal", "impaired", "MCI", "AD")) +
+  ylab("Standard CDR sum of boxes") + 
+  scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9", "red")) + 
+  theme(legend.position = "none")
+
+# As cognitive status worsens, CDR sum increases (meaning more impairment
+# in memory, orientation, judgement, community affairs, hobbies, and personal
+# care). 
+# In particular, patients with AD have a distribution with much higher CDR sums
+# than patients without AD.
+```
