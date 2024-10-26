@@ -1,0 +1,400 @@
+---
+title: "EDA - NPT, Part 2"
+author: "Kent T"
+format: html
+---
+
+## EDA for NPT (Neuropsychological Tests)
+
+```{r}
+#| label: load packages
+library(tidyverse) 
+library(rsample)
+library(broom)
+library(yardstick)
+library(janitor)
+```
+
+```{r}
+#| label: import data 
+library(readr)
+csf <- read_csv(here::here("Data", "csf.csv")) #biomarkers data
+mri <- read_csv(here::here("Data", "mri.csv")) #mri scan data
+uds <- read_csv(here::here("Data", "uds.csv")) #questionare data
+```
+
+```{r}
+#| label: data wrangling
+
+uds_cleaning <- uds |>
+   mutate(
+     
+#Variable of Interest
+    NACCUDSD = NACCUDSD |> 
+      as.factor() |>
+      relevel(ref = "1")
+   )
+
+#NA Filtering -> all tables and graph have NA removed 
+uds_cleaning <- uds_cleaning |>
+  filter(!is.na(MINTTOTS))|>
+  filter(!is.na(CRAFTDRE))|>
+  filter(!is.na(DIGFORCT))|>
+  filter(!is.na(DIGFORSL))|>
+  filter(!is.na(DIGBACCT))|>
+  filter(!is.na(DIGBACLS))
+
+```
+
+# Boston Naming Test
+
+# Montreal Cognitive Assessment
+
+# Number Span Test
+
+For all: includes Categorical values (removed in clean dataset)
+
+-   95 = Physical problem
+
+-   96 = Cognitive/behavior problem
+
+-   97 = Other problem
+
+-   98 = Verbal refusal
+
+-   -4 = Not available: UDS form submitted did not collect data in this way, or a skip pattern precludes response to this question
+
+-   Forwards Total Amount Correct (DIGFORCT)
+
+    -   0-14 Points Possible, 1 points per number sequence 
+
+-   Forwards Longest Length (DIGFORSL)
+
+    -   0, 3-9 Longest Length remembered possible
+
+-   Backwards Total Amount Correct (DIGBACCT)
+
+    -   0-14 Points Possible, 1 points per number sequence 
+
+```{=html}
+<!-- -->
+```
+-   Backwards Longest Length(DIGBACLS) 
+
+    -   0, 3-9 Longest Length remembered possible
+
+```{r}
+#| label: five number summaries with summarize of Number Span Test: DIGFORCT, DIGFORSL, DIGBACCT, DIGBACLS
+
+uds_cleaning |>
+  summarize(
+    min_DIGFORCT = min(DIGFORCT), # minimum
+    q1_DIGFORCT = quantile(DIGFORCT, 0.25), # lower quartile or Q1
+    med_DIGFORCT = median(DIGFORCT), # median
+    q3_DIGFORCT = quantile(DIGFORCT, 0.75), # upper quartile or Q3
+    max_DIGFORCT = max(DIGFORCT) # maximum
+  )
+
+uds_cleaning |>
+  summarize(
+    min_DIGFORSL = min(DIGFORSL), # minimum
+    q1_DIGFORSL = quantile(DIGFORSL, 0.25), # lower quartile or Q1
+    med_DIGFORSL = median(DIGFORSL), # median
+    q3_DIGFORSL = quantile(DIGFORSL, 0.75), # upper quartile or Q3
+    max_DIGFORSL = max(DIGFORSL) # maximum
+  )
+
+uds_cleaning |>
+  summarize(
+    min_DIGBACCT = min(DIGBACCT), # minimum
+    q1_DIGBACCT = quantile(DIGBACCT, 0.25), # lower quartile or Q1
+    med_DIGBACCT = median(DIGBACCT), # median
+    q3_DIGBACCT = quantile(DIGBACCT, 0.75), # upper quartile or Q3
+    max_DIGBACCT = max(DIGBACCT) # maximum
+  )
+
+uds_cleaning |>
+  summarize(
+    min_DIGFORCT = min(DIGFORCT), # minimum
+    q1_DIGFORCT = quantile(DIGFORCT, 0.25), # lower quartile or Q1
+    med_DIGFORCT = median(DIGFORCT), # median
+    q3_DIGFORCT = quantile(DIGFORCT, 0.75), # upper quartile or Q3
+    max_DIGFORCT = max(DIGFORCT) # maximum
+  )
+```
+
+```{r}
+#| label: histograms of Number Span Test: DIGFORCT, DIGFORSL, DIGBACCT, DIGBACLS
+
+
+# Step 1: Set up the graph
+ggplot(data = uds_cleaning, 
+       mapping = aes(x = DIGFORCT)) +
+# Step 2: Add the plot
+  geom_histogram(fill = "darkviolet", 
+                 color = "black",
+                 center = 16,
+                 binwidth = 1) +
+# Step 3: Add features to the plot
+  labs(x = "DIGFORCT Scores",
+       y = "Number of Patients") +
+  theme(
+    axis.title = element_text(size = 24),
+    axis.text = element_text(size = 16)
+  )
+
+# Step 1: Set up the graph
+ggplot(data = uds_cleaning, 
+       mapping = aes(x = DIGFORSL)) +
+# Step 2: Add the plot
+  geom_histogram(fill = "darkviolet", 
+                 color = "black",
+                 center = 16,
+                 binwidth = 1) +
+# Step 3: Add features to the plot
+  labs(x = "DIGFORSL Scores",
+       y = "Number of Patients") +
+  theme(
+    axis.title = element_text(size = 24),
+    axis.text = element_text(size = 16)
+  )
+
+# Step 1: Set up the graph
+ggplot(data = uds_cleaning, 
+       mapping = aes(x = DIGBACCT)) +
+# Step 2: Add the plot
+  geom_histogram(fill = "darkviolet", 
+                 color = "black",
+                 center = 16,
+                 binwidth = 1) +
+# Step 3: Add features to the plot
+  labs(x = "DIGBACCT Scores",
+       y = "Number of Patients") +
+  theme(
+    axis.title = element_text(size = 24),
+    axis.text = element_text(size = 16)
+  )
+
+# Step 1: Set up the graph
+ggplot(data = uds_cleaning, 
+       mapping = aes(x = DIGBACLS)) +
+# Step 2: Add the plot
+  geom_histogram(fill = "darkviolet", 
+                 color = "black",
+                 center = 16,
+                 binwidth = 1) +
+# Step 3: Add features to the plot
+  labs(x = "DIGBACLS Scores",
+       y = "Number of Patients") +
+  theme(
+    axis.title = element_text(size = 24),
+    axis.text = element_text(size = 16)
+  )
+```
+
+```{r}
+#| label: Graph of (Number Span Test: DIGFORCT, DIGFORSL, DIGBACCT, DIGBACLS) vs NACCUDSD
+
+ggplot(
+  data = uds_cleaning,
+  mapping = aes(x = DIGFORCT, fill = NACCUDSD),
+  ) +
+  geom_bar(position = "Fill") +
+  labs(x = "DIGFORCT SCORE",
+       y = "Proportion of Patients") +
+    scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("blue", "deepskyblue","yellow", "red"),
+    labels = c("Normal cognition", "Impaired-not-MCI", "MCI","Dementia")
+#1 = Normal cognition 
+#2 = Impaired-not-MCI 
+#3 = MCI 
+#4 = Dementia
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(
+  data = uds_cleaning,
+  mapping = aes(x = DIGFORSL, fill = NACCUDSD),
+  ) +
+  geom_bar(position = "Fill") +
+  labs(x = "DIGFORSL SCORE",
+       y = "Proportion of Patients") +
+    scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("blue", "deepskyblue","yellow", "red"),
+    labels = c("Normal cognition", "Impaired-not-MCI", "MCI","Dementia")
+#1 = Normal cognition 
+#2 = Impaired-not-MCI 
+#3 = MCI 
+#4 = Dementia
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(
+  data = uds_cleaning,
+  mapping = aes(x = DIGBACCT, fill = NACCUDSD),
+  ) +
+  geom_bar(position = "Fill") +
+  labs(x = "DIGBACCT SCORE",
+       y = "Proportion of Patients") +
+    scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("blue", "deepskyblue","yellow", "red"),
+    labels = c("Normal cognition", "Impaired-not-MCI", "MCI","Dementia")
+#1 = Normal cognition 
+#2 = Impaired-not-MCI 
+#3 = MCI 
+#4 = Dementia
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(
+  data = uds_cleaning,
+  mapping = aes(x = DIGBACLS, fill = NACCUDSD),
+  ) +
+  geom_bar(position = "Fill") +
+  labs(x = "DIGBACLS SCORE",
+       y = "Proportion of Patients") +
+    scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("blue", "deepskyblue","yellow", "red"),
+    labels = c("Normal cognition", "Impaired-not-MCI", "MCI","Dementia")
+#1 = Normal cognition 
+#2 = Impaired-not-MCI 
+#3 = MCI 
+#4 = Dementia
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+# Craft Story Recall (Delayed)
+
+-   Read patients a story and asks them to recall everything they can remember after 20 minutes
+
+    -   Given score for Verbatim recalling max 44
+
+    -   Given score for Paraphrase max 25 (given guidelines)
+
+    -   Both scores are 1 point each
+
+```{r}
+#| label: five number summary with summarize of CRAFTDRE
+
+uds_cleaning |>
+  summarize(
+    min_CRAFTDRE = min(CRAFTDRE), # minimum
+    q1_CRAFTDRE = quantile(CRAFTDRE, 0.25), # lower quartile or Q1
+    med_CRAFTDRE = median(CRAFTDRE), # median
+    q3_CRAFTDRE = quantile(CRAFTDRE, 0.75), # upper quartile or Q3
+    max_CRAFTDRE = max(CRAFTDRE) # maximum
+  )
+```
+
+```{r}
+#| label: histogram of  CRAFTDRE
+# Step 1: Set up the graph
+ggplot(data = uds_cleaning, 
+       mapping = aes(x = CRAFTDRE)) +
+# Step 2: Add the plot
+  geom_histogram(fill = "darkviolet", 
+                 color = "black",
+                 center = 16,
+                 binwidth = 1) +
+# Step 3: Add features to the plot
+  labs(x = "Scores",
+       y = "Number of Patients") +
+  theme(
+    axis.title = element_text(size = 24),
+    axis.text = element_text(size = 16)
+  )
+```
+
+```{r}
+#| label: Graph of CRAFTDRE vs NACCUDSD
+
+ggplot(
+  data = uds_cleaning,
+  mapping = aes(x = CRAFTDRE, fill = NACCUDSD),
+  ) +
+  geom_bar(position = "Fill") +
+  labs(x = "CRAFTDRE SCORE",
+       y = "Proportion of Patients",
+       title = "Comparing Craft Story Scores to Cognitive Status") +
+    scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("blue", "deepskyblue","yellow", "red"),
+    labels = c("Normal cognition", "Impaired-not-MCI", "MCI","Dementia")
+#1 = Normal cognition 
+#2 = Impaired-not-MCI 
+#3 = MCI 
+#4 = Dementia
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+# Multilingual Naming Test
+
+-   Shows patient a picture of an object one at a time and asks patient to name each object
+
+    -   Uncued (can’t guess, given hint) -\>  Semantic Cue, or Phonemic Cue 
+
+    -   Stops testing after 6 consecutive failures 
+
+    -   1 point for each correct answer under Uncued or Semantic columns, 0 for Phonemic Cue
+
+    -   Max of 32 Correct
+
+```{r}
+#| label: five number summary with summarize of MINTTOTS
+
+uds_cleaning |>
+  summarize(
+    min_MINTTOTS = min(MINTTOTS), # minimum
+    q1_MINTTOTS = quantile(MINTTOTS, 0.25), # lower quartile or Q1
+    med_MINTTOTS = median(MINTTOTS), # median
+    q3_MINTTOTS = quantile(MINTTOTS, 0.75), # upper quartile or Q3
+    max_MINTTOTS = max(MINTTOTS) # maximum
+  )
+```
+
+```{r}
+#| label: histogram of  MINTTOTS
+# Step 1: Set up the graph
+ggplot(data = uds_cleaning, 
+       mapping = aes(x = MINTTOTS)) +
+# Step 2: Add the plot
+  geom_histogram(fill = "darkviolet", 
+                 color = "black",
+                 center = 16,
+                 binwidth = 1) +
+# Step 3: Add features to the plot
+  labs(x = "MINTTOTS Scores",
+       y = "Number of Patients") +
+  theme(
+    axis.title = element_text(size = 24),
+    axis.text = element_text(size = 16)
+  )
+```
+
+```{r}
+#| label: Graph of MINTTOTS vs NACCUDSD
+
+ggplot(
+  data = uds_cleaning,
+  mapping = aes(x = MINTTOTS, fill = NACCUDSD),
+  ) +
+  geom_bar(position = "Fill") +
+  labs(x = "MINTTOTS SCORE",
+       y = "Proportion of Patients") +
+    scale_fill_manual(
+    name = "Cognitive Status",
+    values = c("blue", "deepskyblue","yellow", "red"),
+    labels = c("Normal cognition", "Impaired-not-MCI", "MCI","Dementia")
+#1 = Normal cognition 
+#2 = Impaired-not-MCI 
+#3 = MCI 
+#4 = Dementia
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
