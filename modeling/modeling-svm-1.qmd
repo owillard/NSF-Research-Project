@@ -1,6 +1,5 @@
 ---
 title: "Modeling SVM"
-author: "Yvette Vargas"
 format: html
 editor_options: 
   chunk_output_type: console
